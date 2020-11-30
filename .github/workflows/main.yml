@@ -55,7 +55,9 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
           
       - name: Lint with black
-        uses: psf/black@stable
+        run: |
+          pip install black
+          black .
           
       #- name: Run Tox
         # Run tox using the version of Python in `PATH`
