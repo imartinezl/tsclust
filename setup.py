@@ -26,7 +26,7 @@ setuptools.setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    description="Streaming Time-series Clustering,
+    description="Streaming Time-series Clustering",
     entry_points={
         'console_scripts': [
             'tsclust=tsclust:main',
@@ -40,8 +40,8 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     name="tsclust", 
-    package_data={}
-    packages=find_packages(include=['python_boilerplate', 'python_boilerplate.*']),
+    package_data={},
+    packages=setuptools.find_packages(include=['python_boilerplate', 'python_boilerplate.*']),
     project_urls={
         #'Bug Reports': 'https://github.com/pypa/sampleproject/issues',
         #'Funding': 'https://donate.pypi.org',
