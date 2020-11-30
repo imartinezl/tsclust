@@ -4,13 +4,17 @@
 
 import unittest
 
-from tsclust.tsclust import add_one
+import pprint
+import sys
+pprint.pprint(sys.path)
+
+from tsclust import tsclust
 
 
 class TestSimple(unittest.TestCase):
 
     def test_add_one(self):
-        self.assertEqual(add_one(5), 6)
+        self.assertEqual(tsclust.add_one(5), 6)
 
 
 if __name__ == '__main__':
