@@ -41,7 +41,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     name="tsclust", 
     package_data={},
-    packages=setuptools.find_packages(include=['python_boilerplate', 'python_boilerplate.*']),
+    packages=setuptools.find_packages(include=['tsclust', 'tsclust.*']),
     project_urls={
         #'Bug Reports': 'https://github.com/pypa/sampleproject/issues',
         #'Funding': 'https://donate.pypi.org',
