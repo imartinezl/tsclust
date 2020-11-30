@@ -13,7 +13,7 @@ with open('README.rst') as readme_file:
 # Get the long description from the README file
 long_description = readme
 
-requirements = ['Click>=7.0', ]
+requirements = []
 
 setup_requirements = [ ]
 
