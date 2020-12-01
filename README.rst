@@ -11,15 +11,15 @@ tsclust
         :alt: Documentation Status
 
 .. image:: https://img.shields.io/github/license/imartinezl/tsclust
-     	:target: https://github.com/imartinezl/tsclust/blob/master/LICENSE
-     	:alt: License
+        :target: https://github.com/imartinezl/tsclust/blob/master/LICENSE
+        :alt: License
 
 .. image:: https://github.com/imartinezl/tsclust/workflows/CI/badge.svg
-	:target: https://github.com/imartinezl/tsclust/actions
-	:alt: Actions
+    :target: https://github.com/imartinezl/tsclust/actions
+    :alt: Actions
 
 .. image:: https://img.shields.io/pypi/dd/tsclust
-	:target: https://pypi.python.org/pypi/tsclust
+    :target: https://pypi.python.org/pypi/tsclust
 
 
 Python Boilerplate contains all the boilerplate you need to create a Python package.
