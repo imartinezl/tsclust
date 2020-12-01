@@ -87,22 +87,21 @@ def add_one(number):
     The wrapping can be done by passing a string indicating the metric to pass
     to scikit-learn pairwise_distances:
 
-    >>> dtw_path_from_metric(s1, s2,
-    ...                      metric="sqeuclidean")  # doctest: +ELLIPSIS
+    #>>> dtw_path_from_metric(s1, s2, metric="sqeuclidean")  # doctest: +ELLIPSIS
     ([(0, 0), (0, 1), (1, 2), (2, 3), (3, 4), (4, 5)], 1.117...)
 
     Or by defining a custom distance function:
 
-    >>> sqeuclidean = lambda x, y: np.sum((x-y)**2)
-    >>> dtw_path_from_metric(s1, s2, metric=sqeuclidean)  # doctest: +ELLIPSIS
+    # >>> sqeuclidean = lambda x, y: np.sum((x-y)**2)
+    # >>> dtw_path_from_metric(s1, s2, metric=sqeuclidean)  # doctest: +ELLIPSIS
     ([(0, 0), (0, 1), (1, 2), (2, 3), (3, 4), (4, 5)], 1.117...)
 
     Or by using a precomputed distance matrix as input:
 
-    >>> from sklearn.metrics.pairwise import pairwise_distances
-    >>> dist_matrix = pairwise_distances(s1, s2, metric="sqeuclidean")
-    >>> dtw_path_from_metric(dist_matrix,
-    ...                      metric="precomputed")  # doctest: +ELLIPSIS
+    # >>> from sklearn.metrics.pairwise import pairwise_distances
+    # >>> dist_matrix = pairwise_distances(s1, s2, metric="sqeuclidean")
+    # >>> dtw_path_from_metric(dist_matrix,
+    # ...                      metric="precomputed")  # doctest: +ELLIPSIS
     ([(0, 0), (0, 1), (1, 2), (2, 3), (3, 4), (4, 5)], 1.117...)
 
     Notes
