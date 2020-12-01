@@ -14,7 +14,8 @@ sphinx:
 #  configuration: mkdocs.yml
 
 # Optionally build your docs in additional formats such as PDF and ePub
-formats: pdf
+formats:
+  - pdf
 
 build:
   image: latest
@@ -25,6 +26,7 @@ python:
         - requirements: requirements.txt
         - method: pip
           path: .
+
 submodules:
     include: all
     recursive: true
