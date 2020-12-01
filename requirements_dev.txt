@@ -1,0 +1,11 @@
+pip
+wheel
+Sphinx
+sphinx-rtd-theme
+numpydoc
+flake8
+black
+pytest
+pytest-cov
+twine
+tox
