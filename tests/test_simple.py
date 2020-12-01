@@ -6,16 +6,16 @@ import unittest
 
 import pprint
 import sys
+
 pprint.pprint(sys.path)
 
-from tsclust import tsclust
+from tsclust import example
 
 
 class TestSimple(unittest.TestCase):
-
     def test_add_one(self):
-        self.assertEqual(tsclust.add_one(5), 6)
+        self.assertEqual(example.add_one(5), 6)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
