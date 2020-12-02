@@ -17,16 +17,10 @@ sphinx:
 formats:
   - pdf
 
-build:
-  image: latest
-
 python:
     install:
         - requirements: docs/requirements.txt
         - requirements: requirements.txt
-        - method: pip
+        - requirements: requirements_dev.txt
+        - method: setuptools
           path: .
-
-submodules:
-    include: all
-    recursive: true
