@@ -2,27 +2,29 @@
 tsclust
 =======
 
-
 .. image:: https://img.shields.io/pypi/v/tsclust.svg
-        :target: https://pypi.python.org/pypi/tsclust
+    :target: https://pypi.python.org/pypi/tsclust
+    :alt: Documentation Status
 
 .. image:: https://readthedocs.org/projects/tsclust/badge/?version=latest
-        :target: https://tsclust.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
+    :target: https://tsclust.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 
 .. image:: https://img.shields.io/github/license/imartinezl/tsclust
-        :target: https://github.com/imartinezl/tsclust/blob/master/LICENSE
-        :alt: License
+    :target: https://github.com/imartinezl/tsclust/blob/master/LICENSE
+    :alt: License
 
 .. image:: https://github.com/imartinezl/tsclust/workflows/CI/badge.svg
     :target: https://github.com/imartinezl/tsclust/actions
     :alt: Actions
 
 .. image:: https://img.shields.io/pypi/dd/tsclust
-    :target: https://pypi.python.org/pypi/tsclust
+    :target: https://pepy.tech/project/tsclust
 
+.. image:: https://img.shields.io/github/languages/top/imartinezl/tsclust
+    :target: https://github.com/imartinezl/tsclust
+    :alt: Top Language
 
-Python Boilerplate contains all the boilerplate you need to create a Python package.
 
 
 * Free software: MIT license
