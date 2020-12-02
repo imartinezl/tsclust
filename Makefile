@@ -39,7 +39,7 @@ help:
 
 .PHONY: clean clean-build clean-pyc clean-test
 
-clean: clean-build clean-pyc clean-test ## remove all build, test, coverage and Python artifacts
+clean: clean-build clean-pyc clean-test clean-venv ## remove all build, test, coverage and Python artifacts
 
 clean-build: ## remove build artifacts
 	rm -fr build/
@@ -91,7 +91,9 @@ test-pytest: pytest ## run tests quickly with the default Python
 
 tox: venv ## installs tox
 	test -s $(VENV_BIN)/tox || $(VENV_BIN)/pip install tox
-test-tox: $(VENV_BIN)/tox ## run tests on every Python version with tox
+clean-tox:
+	rm -fr .tox/
+test-tox: tox ## run tests on every Python version with tox
 	$(VENV_BIN)/tox
 
 test-native: ## run tests quickly with the default Python
@@ -120,18 +122,18 @@ servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
 
 .PHONY: release-test release dist install
-release-test: dist ## package and upload a release
+release-test: dist venv## package and upload a release
 	$(VENV_BIN)/twine upload -r testpypi dist/*
 
-release: dist ## package and upload a release
+release: dist venv## package and upload a release
 	$(VENV_BIN)/twine upload dist/*
 
-dist: clean ## builds source and wheel package
+dist: clean venv ## builds source and wheel package
 	$(VENV_BIN)/python setup.py sdist
 	$(VENV_BIN)/python setup.py bdist_wheel
 	ls -l dist
 
-install: clean ## install the package to the active Python's site-packages
+install: clean venv## install the package to the active Python's site-packages
 	$(VENV_BIN)/python setup.py install
 
 .PHONY: clean-venv venv activate setup show-venv debug-venv
