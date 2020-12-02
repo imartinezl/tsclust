@@ -72,23 +72,17 @@ clean-image: ## remove Docker image
 docker: ## docker
 	docker-compose up
 
-.PHONY: format lint pytest test-pytest test-tox coverage docs servedocs
-
-
+.PHONY: format lint pytest test-pytest test-tox test-native test-coverage
 
 black: venv ## installs black code formatter
 	test -s $(VENV_BIN)/black || $(VENV_BIN)/pip install black
-
 format: black ## check style with black code formatter
 	$(VENV_BIN)/black $(NAME) $(TESTS)
 
-
 flake8: venv ## installs flake8 code linter
 	test -s $(VENV_BIN)/flake8 || $(VENV_BIN)/pip install flake8
-
 lint: flake8  ## check style with flake8
 	$(VENV_BIN)/flake8 $(NAME) $(TESTS)
-
 
 pytest: venv ## installs pytest
 	test -s $(VENV_BIN)/pytest || $(VENV_BIN)/pip install pytest
@@ -111,12 +105,15 @@ test-coverage: coverage ## check code coverage quickly with the default Python
 	$(VENV_BIN)/coverage html
 	$(BROWSER) htmlcov/index.html
 
-docs: install-docs-reqs ## generate Sphinx HTML documentation, including API docs
+.PHONY: clean-docs docs servedocs
+clean-docs: ## clean docs
 	rm -f docs/$(NAME).rst
 	rm -f docs/modules.rst
+
+docs: clean-docs install-docs-reqs ## generate Sphinx HTML documentation, including API docs
 	$(VENV_BIN)/sphinx-apidoc -o docs/ $(NAME)
-	$(MAKE) -C docs clean
-	$(MAKE) -C docs html
+	$(MAKE) -C docs clean VENV_BIN=../$(VENV_BIN)
+	$(MAKE) -C docs html VENV_BIN=../$(VENV_BIN)
 	$(BROWSER) docs/_build/html/index.html
 
 servedocs: docs ## compile the docs watching for changes
@@ -137,7 +134,7 @@ dist: clean ## builds source and wheel package
 install: clean ## install the package to the active Python's site-packages
 	$(VENV_BIN)/python setup.py install
 
-.PHONY: clean-venv init-venv activate-venv show-venv debug-venv
+.PHONY: clean-venv venv activate setup show-venv debug-venv
 
 clean-venv: ## remove virtualenv
 	rm -fr $(VENV)
@@ -146,24 +143,24 @@ venv: ## create virtualenv
 	test -d $(VENV) || virtualenv --clear $(VENV) --python=$(PY)
 
 activate: venv ## activate virtualenv
-	@. $(VENV_BIN)/activate
+	. $(VENV_BIN)/activate
 
-setup: clean-venv venv install-requirements freeze
+setup: clean-venv venv install-reqs freeze
 
 show-venv: venv
-	@$(VENV_BIN)/python -c "import sys; print('Python ' + sys.version.replace('\n',''))"
-	@$(VENV_BIN)/pip --version
-	@echo venv: $(VENVDIR)
+	$(VENV_BIN)/python -c "import sys; print('Python ' + sys.version.replace('\n',''))"
+	$(VENV_BIN)/pip --version
+	echo venv: $(VENVDIR)
 
 debug-venv:
-	@$(MAKE) --version
+	$(MAKE) --version
 	$(info PY="$(PY)")
 	$(info REQUIREMENTS="$(REQUIREMENTS)")
 	$(info REQUIREMENTS_DEV="$(REQUIREMENTS_DEV)")
 	$(info VENVDIR="$(VENVDIR)")
 	$(info WORKDIR="$(WORKDIR)")
 
-.PHONY: freeze install-reqs upgrade-reqs
+.PHONY: freeze install-dev-reqs upgrade-dev-reqs install-docs-reqs upgrade-docs-reqs install-pkg-reqs upgrade-pkg-reqs install-reqs upgrade-reqs
 freeze: venv ## freeze dependencies
 	$(VENV_BIN)/pip freeze > requirements_freeze.txt
 
@@ -171,25 +168,25 @@ install-dev-reqs: venv  ## install dev-dependencies
 	$(VENV_BIN)/pip install -r $(REQUIREMENTS_DEV)
 
 upgrade-dev-reqs: venv  ## upgrade dev-dependencies
-	@$(VENV_BIN)/pip install --upgrade -r $(REQUIREMENTS_DEV)
+	$(VENV_BIN)/pip install --upgrade -r $(REQUIREMENTS_DEV)
 
 install-docs-reqs: venv  ## install docs-dependencies
 	$(VENV_BIN)/pip install -r $(REQUIREMENTS_DOCS)
 
 upgrade-docs-reqs: venv  ## upgrade docs-dependencies
-	@$(VENV_BIN)/pip install --upgrade -r $(REQUIREMENTS_DOCS)
+	$(VENV_BIN)/pip install --upgrade -r $(REQUIREMENTS_DOCS)
 
 install-pkg-reqs: venv  ## install dependencies
 	$(VENV_BIN)/pip install -r $(REQUIREMENTS)
 
 upgrade-pkg-reqs: venv  ## upgrade dependencies
-	@$(VENV_BIN)/pip install --upgrade -r $(REQUIREMENTS)
+	$(VENV_BIN)/pip install --upgrade -r $(REQUIREMENTS)
 
 install-reqs: venv  ## install dependencies
 	$(VENV_BIN)/pip install -r $(REQUIREMENTS) -r $(REQUIREMENTS_DEV) -r $(REQUIREMENTS_DOCS)
 
 upgrade-reqs: venv  ## upgrade dependencies
-	@$(VENV_BIN)/pip install --upgrade -r $(REQUIREMENTS) -r $(REQUIREMENTS_DEV) -r $(REQUIREMENTS_DOCS)
+	$(VENV_BIN)/pip install --upgrade -r $(REQUIREMENTS) -r $(REQUIREMENTS_DEV) -r $(REQUIREMENTS_DOCS)
 
 .PHONY: python-venv
 python-venv: venv ## start virtualenv python
