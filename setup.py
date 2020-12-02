@@ -6,9 +6,6 @@ import setuptools
 with open("README.rst", "r") as fh:
     README = fh.read()
 
-import tsclust
-VERSION = tsclust.__version__
-
 NAME = "tsclust"
 DESCRIPTION = "Streaming Time-series Clustering"
 URL = "https://github.com/imartinezl/tsclust"
@@ -66,6 +63,6 @@ setuptools.setup(
     test_suite = TEST_SUITE,
     tests_require = TEST_REQUIREMENTS,
     url = URL,
-    version = VERSION,
+    # version = VERSION,
     zip_safe = False,
 )
