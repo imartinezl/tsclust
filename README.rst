@@ -40,10 +40,6 @@ Features
 
 * TODO
 
-Contributors
-------------
-
-* Me
 
 Credits
 -------
