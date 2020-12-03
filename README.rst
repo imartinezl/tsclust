@@ -26,9 +26,9 @@ tsclust
 =======
 
 .. image:: assets/logo.gif
-    :width: 100
+    :alt: Logo
 .. image:: assets/name.png
-    :height: 100
+    :alt: Name
 
 
 * Free software: MIT license
