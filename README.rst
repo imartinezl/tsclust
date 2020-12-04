@@ -21,15 +21,9 @@
     :target: https://github.com/imartinezl/tsclust
     :alt: Top Language
 
+.. image:: assets/logo.gif
+    :alt: Logo
 
-|
-
-    .. image:: assets/logo.gif
-        :alt: Logo
-    .. image:: assets/name.svg
-        :alt: Name
-        :height: 180
-        
 
 * Free software: MIT license
 * Documentation: https://tsclust.readthedocs.io
