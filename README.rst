@@ -1,3 +1,4 @@
+
 .. image:: https://img.shields.io/pypi/v/tsclust.svg
     :target: https://pypi.python.org/pypi/tsclust
     :alt: Documentation Status
@@ -21,9 +22,17 @@
     :target: https://github.com/imartinezl/tsclust
     :alt: Top Language
 
-.. image:: assets/logo.gif
+.. image:: https://raw.githubusercontent.com/imartinezl/tsclust/master/assets/logo.gif
     :alt: Logo
+    :width: 500
 
+
+
+
+
+
+Introduction
+------------
 
 * Free software: MIT license
 * Documentation: https://tsclust.readthedocs.io
