@@ -4,6 +4,7 @@ numpydoc
 flake8
 black
 pytest
+pytest-benchmark
 pytest-cov
 twine
 tox

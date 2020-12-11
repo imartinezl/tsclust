@@ -84,10 +84,13 @@ flake8: venv ## installs flake8 code linter
 lint: flake8  ## check style with flake8
 	$(VENV_BIN)/flake8 $(NAME) $(TESTS)
 
-pytest: venv ## installs pytest
-	test -s $(VENV_BIN)/pytest || $(VENV_BIN)/pip install pytest
-test-pytest: pytest ## run tests quickly with the default Python
-	$(VENV_BIN)/pytest .
+pytest: venv ## installs pytest and pytest-benchmark
+	test -s $(VENV_BIN)/pytest || $(VENV_BIN)/pip install pytest pytest-benchmark
+test-pytest: pytest ## run tests with pytest
+	$(VENV_BIN)/pytest . --benchmark-skip
+test-pytest-benchmark: pytest ## run benchmarks with pytest
+	$(VENV_BIN)/pytest . --benchmark-only
+
 
 tox: venv ## installs tox
 	test -s $(VENV_BIN)/tox || $(VENV_BIN)/pip install tox
