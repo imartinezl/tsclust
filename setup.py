@@ -37,7 +37,7 @@ EXTRAS_REQUIRE = {}
 KEYWORDS = ["time series", "clustering", "streaming", "average"]
 LICENSE = "MIT license"
 TEST_SUITE = "tests"
-REQUIREMENTS = ['numpy', 'numba', 'matplotlib', 'tabulate']
+REQUIREMENTS = ['numpy', 'numba', 'scipy', 'matplotlib', 'tabulate']
 SETUP_REQUIREMENTS = []
 TEST_REQUIREMENTS = ['pytest', 'pytest-cov']
 
