@@ -114,34 +114,36 @@ class BasePattern():
                f'\n\nnormalization: {self.norm}\n'
 
     def plot(self):
-        alpha = .5
+        alpha = .55
         fudge = [0, 0]
 
         fig, ax = plt.subplots(figsize=(6, 6))
+
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
             px, py = zip(*self.pattern[i]["indices"])
-            ax.plot(px, py, lw=2, color="tab:blue")
-            ax.plot(px, py, color="black", marker="o", fillstyle="none")
 
             if pattern_len == 1:
                 continue
-            for j in range(pattern_len-1):
+            for j in range(pattern_len):
                 weight = self.pattern[i]["weights"][j]
                 if weight == -1:
-                    ax.plot(px[j], py[j], 'o', color="black")
+                    ax.plot(px[j], py[j], 'o', color="red")
                 else:
-                    xh = alpha * px[j] + (1 - alpha) * px[j+1] + fudge[0]
-                    yh = alpha * py[j] + (1 - alpha) * py[j+1] + fudge[1]
-                    ax.annotate(str(weight), xy = (xh, yh), 
-                                arrowprops=dict(arrowstyle="->", color="0.5",
-                                                shrinkA=5, shrinkB=5,
-                                                patchA=None, patchB=None,
-                                                connectionstyle="arc3,rad=0.3",
-                                                )
+                    fudge = (0.05*abs(py[j]-py[j-1]), -0.12*abs(px[j]-px[j-1]))
+                    xh = alpha * px[j-1] + (1 - alpha) * px[j] + fudge[0]
+                    yh = alpha * py[j-1] + (1 - alpha) * py[j] + fudge[1]
+                    ax.annotate(str(weight), (xh, yh) )
+                    ax.plot(px[j], py[j], color="blue", marker="o", fillstyle="none")
+                    ax.annotate("", xy=(px[j], py[j]), xytext=(px[j-1], py[j-1]),
+                                arrowprops=dict(arrowstyle="->", linewidth=1,
+                                                shrinkA=10, shrinkB=10)
                                 )
-
-
+        min_x = np.min(self.array[:, :, 0])
+        min_y = np.min(self.array[:, :, 1])
+        ax.set_xlim([min_x - 0.5, 0.5])
+        ax.set_ylim([min_y - 0.5, 0.5])
+        ax.set_title(self.label + str(" pattern"))
         ax.set_xlabel("Query index")
         ax.set_ylabel("Reference index")
         ax.set_xticks(np.unique(self.array[:, :, 0]))
