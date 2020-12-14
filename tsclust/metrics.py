@@ -1,6 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+This file contains code that was borrowed from numpy.
+
+Copyright (c) 2005, NumPy Developers
+All rights reserved.
+"""
+
+
+import numpy as np
+import numba as nb
+from numba.extending import overload
+
+jitkw = {
+    "nopython": True,
+    "nogil": True,
+    "cache": True,
+    "error_model": "numpy",
+    "fastmath": True,
+    "debug": True,
+}
+
 __all__ = {
     "minkowski",
     "wminkowski",
@@ -15,19 +36,6 @@ __all__ = {
     "chebyshev",
     "braycurtis",
     "canberra",
-}
-
-import numpy as np
-import numba as nb
-from numba.extending import overload
-
-jitkw = {
-    "nopython": True,
-    "nogil": True,
-    "cache": True,
-    "error_model": "numpy",
-    "fastmath": True,
-    "debug": True,
 }
 
 
@@ -244,3 +252,34 @@ def canberra(u, v, w=None):
         d = w * d
     d = np.nansum(d)
     return d
+
+
+def get_metric(metric_str):
+    if metric_str == "minkowski":
+        return minkowski
+    elif metric_str == "wminkowski":
+        return wminkowski
+    elif metric_str == "euclidean":
+        return euclidean
+    elif metric_str == "sqeuclidean":
+        return sqeuclidean
+    elif metric_str == "correlation":
+        return correlation
+    elif metric_str == "cosine":
+        return cosine
+    elif metric_str == "hamming":
+        return hamming
+    elif metric_str == "seuclidean":
+        return seuclidean
+    elif metric_str == "cityblock":
+        return cityblock
+    elif metric_str == "mahalanobis":
+        return mahalanobis
+    elif metric_str == "chebyshev":
+        return chebyshev
+    elif metric_str == "braycurtis":
+        return braycurtis
+    elif metric_str == "canberra":
+        return canberra
+    else:
+        raise NotImplementedError("given metric not supported")
