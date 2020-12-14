@@ -23,7 +23,7 @@ import networkx as nx
 #     "debug": True,
 # }
 
-__all__ = {
+all = {
     "symmetric1",
     "symmetric2",
     "asymmetric",
@@ -53,6 +53,15 @@ __all__ = {
     "unitary",
 }
 
+def _num_to_str(num):
+    if type(num) == int:
+        return str(num)
+    elif type(num) == float:
+        return "{0:1.2f}".format(num)
+    else:
+        return str(num)
+
+
 
 class BasePattern:
     label = ""
@@ -70,7 +79,9 @@ class BasePattern:
         array = np.zeros([self.num_pattern, self.max_pattern_len, 3], dtype="float")
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
-            self.pattern[i]["weights"].insert(0, -1)
+            weight_len = len(self.pattern[i]["weights"])
+            if weight_len == pattern_len-1:
+                self.pattern[i]["weights"].insert(0, -1)
             for j in range(pattern_len):
                 array[i, j, 0:2] = self.pattern[i]["indices"][j]
                 array[i, j, 2] = self.pattern[i]["weights"][j]
@@ -101,9 +112,8 @@ class BasePattern:
             pattern_len = len(self.pattern[i]["indices"])
             for j in range(pattern_len - 1):
                 graph.add_edge(node_names[i][j], node_names[i][j + 1])
-                edge_labels[(node_names[i][j], node_names[i][j + 1])] = str(
-                    self.pattern[i]["weights"][j + 1]
-                )
+                edge_labels[(node_names[i][j], node_names[i][j + 1])] = \
+                    _num_to_str(self.pattern[i]["weights"][j + 1])
         self._graph = graph
         self._graph_layout = graph_layout
         self._edge_labels = edge_labels
@@ -125,11 +135,11 @@ class BasePattern:
         if not self.is_normalizable:
             return None
         if self.normalize == "N+M":
-            return value / (n + np.arange(1, m + 1))
+            return value / (n + m + 1)
         elif self.normalize == "N":
             return value / n
         elif self.normalize == "M":
-            return value / np.arange(1, m + 1)
+            return value / (m + 1)
         else:
             raise Exception()
 
@@ -171,7 +181,7 @@ class BasePattern:
             p = str(self.pattern[i]["indices"][0])
             for j in range(1, pattern_len):
                 p += " - ["
-                p += str(self.pattern[i]["weights"][j])
+                p += _num_to_str(self.pattern[i]["weights"][j])
                 p += "] - "
                 p += str(self.pattern[i]["indices"][j])
             s += p + "\n"
@@ -212,7 +222,7 @@ class BasePattern:
                 data = [i, dx, dy, weight]
                 table += "\n|"
                 for k in range(len(headers)):
-                    table += str(data[k]).rjust(width[k] + 1) + " |"
+                    table += _num_to_str(data[k]).rjust(width[k] + 1) + " |"
 
         normalize = f"\n\nnormalization: {self.normalize}\n"
         return title + table + normalize
@@ -237,7 +247,7 @@ class BasePattern:
                     )
                     xh = alpha * px[j - 1] + (1 - alpha) * px[j] + fudge[0]
                     yh = alpha * py[j - 1] + (1 - alpha) * py[j] + fudge[1]
-                    ax.annotate(str(weight), (xh, yh))
+                    ax.annotate(_num_to_str(weight), (xh, yh))
                     ax.plot(px[j], py[j], color="blue", marker="o", fillstyle="none")
                     ax.annotate(
                         "",
@@ -251,7 +261,7 @@ class BasePattern:
         y_ticks = np.unique(self.array[:, :, 1])
         ax.set_xlim([np.min(x_ticks) - 0.5, 0.5])
         ax.set_ylim([np.min(y_ticks) - 0.5, 0.5])
-        ax.set_title(self.label + str(" pattern"))
+        ax.set_title(self.label + " pattern")
         ax.set_xlabel("Query index")
         ax.set_ylabel("Reference index")
         ax.set_xticks(x_ticks)
@@ -261,7 +271,7 @@ class BasePattern:
 
     def plot_graph(self):
         """Show step pattern."""
-        plt.figure(figsize=(6, 6))
+        fig, ax = plt.subplots(figsize=(6, 6))
         if not hasattr(self, "_graph"):
             self._gen_graph()
         nx.draw_networkx_nodes(
@@ -277,18 +287,20 @@ class BasePattern:
         )
         x_ticks = np.unique(self.array[:, :, 0])
         y_ticks = np.unique(self.array[:, :, 1])
-        plt.xlim([np.min(x_ticks) - 0.5, 0.5])
-        plt.ylim([np.min(y_ticks) - 0.5, 0.5])
+        ax.set_xlim([np.min(x_ticks) - 0.5, 0.5])
+        ax.set_ylim([np.min(y_ticks) - 0.5, 0.5])
         plt.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
-        plt.xticks(x_ticks)
-        plt.yticks(y_ticks)
-        plt.title(self.label + str(" pattern"))
-        plt.xlabel("Query index")
-        plt.ylabel("Reference index")
+        ax.set_xticks(x_ticks)
+        ax.set_yticks(y_ticks)
+        ax.set_title(self.label + " pattern")
+        ax.set_xlabel("Query index")
+        ax.set_ylabel("Reference index")
         plt.show()
 
+        return ax
+
     def plot(self):
-        self.plot_graph()
+        return self.plot_graph()
 
 
 class Symmetric1(BasePattern):
