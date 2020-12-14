@@ -15,7 +15,7 @@ jitkw = {
     "debug": True,
 }
 
-__all__ = {"none", "sakoechiba", "itakura", "slanted"}
+all = {"none", "sakoechiba", "itakura", "slanted"}
 
 
 @nb.jit(**jitkw)
@@ -63,10 +63,14 @@ def get_position(window, query_size, reference_size, window_size=None):
     return np.argwhere(mask)
 
 
-def display(mask):
+def plot_window(window, query_size, reference_size, window_size=None):
+    mask = precompute(window, query_size, reference_size, window_size)
+    plot_mask(mask)
+
+
+def plot_mask(mask):
     query_size, reference_size = mask.shape
     fig, ax = plt.subplots(figsize=(6, 6))
-    # ax.pcolormesh(mask, edgecolors='#BC3908', linewidth=0.1, cmap='gray', snap=True)
     ax.imshow(mask, origin="upper", cmap="cividis")
     ax.set_ylabel(f"query (size: {query_size})")
     ax.set_xlabel(f"reference (size: {reference_size})")
