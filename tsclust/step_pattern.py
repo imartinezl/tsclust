@@ -70,7 +70,7 @@ class BasePattern:
         array = np.zeros([self.num_pattern, self.max_pattern_len, 3], dtype="float")
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
-            self.pattern[i]["weights"].insert(0, np.nan)
+            self.pattern[i]["weights"].insert(0, -1)
             for j in range(pattern_len):
                 array[i, j, 0:2] = self.pattern[i]["indices"][j]
                 array[i, j, 2] = self.pattern[i]["weights"][j]
@@ -90,7 +90,7 @@ class BasePattern:
                 node_name = str(i) + str(j)
                 graph.add_node(node_name)
                 graph_layout[node_name] = np.array(self.pattern[i]["indices"][j])
-                if np.isnan(self.pattern[i]["weights"][j]):
+                if self.pattern[i]["weights"][j] == -1:
                     node_colors.append("r")
                 else:
                     node_colors.append("b")
@@ -150,7 +150,7 @@ class BasePattern:
                 dy_str = "" if dy == 0 else f"{int(dy)}"
                 delta_str = f"i{dx_str:2},j{dy_str:2}"
 
-                if np.isnan(weight):
+                if weight == -1:
                     global_str = f"\tg[{delta_str}]"
                     body = body + " " + global_str
                 else:

@@ -75,7 +75,7 @@ def _compute_global_cost(local_cost, pattern, window, window_size=None):
                         if ii < 0 or jj < 0:
                             step_cost[p, s] = np.inf
                             continue
-                        if np.isnana(weight):
+                        if weight == -1:
                             step_cost[p, s] = cost[ii, jj]
                         else:
                             step_cost[p, s] = local_cost[ii, jj] * weight
@@ -86,12 +86,11 @@ def _compute_global_cost(local_cost, pattern, window, window_size=None):
     return cost
 
 
-# @nb.jit(**jitkw)
 def dtw(
     x,
     y,
     local_dist="sqeuclidean",
-    step_pattern="asymmetricP05",
+    step_pattern="symmetric1",
     window_name="none",
     window_size=None,
     compute_path=True,
@@ -106,7 +105,7 @@ def dtw(
 
     cost, direction = _compute_cost(x, y, dist, pattern.array, window, window_size)
 
-    dist, normalized_dist = _get_distance(cost, pattern)
+    # dist, normalized_dist = _get_distance(cost, pattern)
 
     print(cost)
     print(direction)
@@ -118,7 +117,6 @@ def dtw(
         path = None
 
     print(path)
-
 
 def _get_distance(cost, pattern):
     dist = cost[-1, -1]
@@ -164,7 +162,6 @@ def _get_local_path(pattern, pattern_idx, i, j):
         local_path[s, :] = (ii, jj)
     return local_path[::-1], origin
 
-
 @nb.jit(**jitkw)
 def _compute_cost(x, y, dist, pattern, window, window_size):
     n = x.shape[0]
@@ -177,6 +174,7 @@ def _compute_cost(x, y, dist, pattern, window, window_size):
     pattern_cost = np.zeros(num_pattern, dtype=np.float64)
     step_cost = np.zeros((num_pattern, max_pattern_len), dtype=np.float64)
 
+    print(pattern)
     for i in range(n):
         for j in range(m):
             if window(i, j, n, m, window_size):
@@ -190,10 +188,12 @@ def _compute_cost(x, y, dist, pattern, window, window_size):
                         if ii < 0 or jj < 0:
                             step_cost[p, s] = np.inf
                             continue
-                        if np.isnan(weight):
+                        if weight == -1:
                             step_cost[p, s] = cost[ii, jj]
                         else:
                             step_cost[p, s] = dist(x[ii], y[jj]) * weight
+                print(i, j, step_cost)
+
                 pattern_cost = step_cost.sum(axis=1)
                 # TO-DO: review if this only happens at i==0 and j==0
                 # if np.isinf(pattern_cost).sum() == num_pattern:
@@ -207,6 +207,7 @@ def _compute_cost(x, y, dist, pattern, window, window_size):
                 if min_cost != np.inf:
                     cost[i, j] = min_cost
                     direction[i, j] = min_cost_dir
+        
     return cost, direction
 
 
