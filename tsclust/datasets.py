@@ -30,7 +30,7 @@ try:
 except ImportError:
     from zipfile import BadZipfile as BadZipFile
 
-from tsclust.utils import _load_arff_uea, _load_txt_uea
+from .utils import _load_arff_uea, _load_txt_uea
 
 print(os.path.abspath("."))
 
