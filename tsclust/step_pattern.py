@@ -1,34 +1,69 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+This file contains code that was borrowed from dtwalign.
+
+https://github.com/statefb/dtwalign
+"""
 
 import numpy as np
-import numba as nb
 import matplotlib.pyplot as plt
-import tabulate
 import networkx as nx
 
-jitkw = {
-    "nopython": True,
-    "nogil": True,
-    "cache": False,
-    "error_model": "numpy",
-    "fastmath": True,
-    "debug": True
+# import numba as nb
+# import tabulate
+
+# jitkw = {
+#     "nopython": True,
+#     "nogil": True,
+#     "cache": False,
+#     "error_model": "numpy",
+#     "fastmath": True,
+#     "debug": True,
+# }
+
+__all__ = {
+    "symmetric1",
+    "symmetric2",
+    "asymmetric",
+    "symmetricP0",
+    "asymmetricP0",
+    "symmetricP05",
+    "asymmetricP05",
+    "symmetricP1",
+    "asymmetricP1",
+    "symmetricP2",
+    "asymmetricP2",
+    "typeIa",
+    "typeIb",
+    "typeIc",
+    "typeId",
+    "typeIas",
+    "typeIbs",
+    "typeIcs",
+    "typeIds",
+    "typeIIa",
+    "typeIIb",
+    "typeIIc",
+    "typeIId",
+    "typeIIIc",
+    "typeIVc",
+    "mori2006",
+    "unitary",
 }
 
-def _num_to_str(num):
-    if type(num) == int:
-        return str(num)
-    elif type(num) == float:
-        return "{0:1.2f}".format(num)
-    else:
-        return str(num)
 
-class BasePattern():
+class BasePattern:
+    label = ""
+    pattern = []
+    normalize = []
+
     def __init__(self):
-        self.num_pattern = len(self.pattern) # number of patterns
-        self.max_pattern_len = max([len(p["indices"]) for p in self.pattern]) # max length of pattern
+        self.num_pattern = len(self.pattern)  # number of patterns
+        self.max_pattern_len = max(
+            [len(p["indices"]) for p in self.pattern]
+        )  # max length of pattern
         self._get_array()
 
     def _get_array(self):
@@ -55,21 +90,47 @@ class BasePattern():
                 graph.add_node(node_name)
                 graph_layout[node_name] = np.array(pat["indices"][j])
                 if pat["weights"][j] == -1:
-                    node_colors.append('r')
+                    node_colors.append("r")
                 else:
-                    node_colors.append('b')
+                    node_colors.append("b")
                 nn.append(node_name)
             node_names.append(nn)
         # set edge
         for i, pat in enumerate(self.pattern):
             step_len = len(pat["indices"])
-            for j in range(step_len-1):
-                graph.add_edge(node_names[i][j], node_names[i][j+1])
-                edge_labels[(node_names[i][j], node_names[i][j+1])] = str(pat["weights"][j+1])
+            for j in range(step_len - 1):
+                graph.add_edge(node_names[i][j], node_names[i][j + 1])
+                edge_labels[(node_names[i][j], node_names[i][j + 1])] = str(
+                    pat["weights"][j + 1]
+                )
         self._graph = graph
         self._graph_layout = graph_layout
         self._edge_labels = edge_labels
         self._node_colors = node_colors
+
+    @property
+    def is_normalizable(self):
+        return self.normalize != "none"
+
+    def do_normalize(self, value, n, m):
+        """Normalize
+        row : 1D array
+            expect last row of D
+        n : int
+            length of query (D.shape[0])
+        m : int
+            length of reference (D.shape[1])
+        """
+        if not self.is_normalizable:
+            return None
+        if self.normalize == "N+M":
+            return value / (n + np.arange(1, m + 1))
+        elif self.normalize == "N":
+            return value / n
+        elif self.normalize == "M":
+            return value / np.arange(1, m + 1)
+        else:
+            raise Exception()
 
     def __repr__(self):
         title = self.label + " pattern: \n\n"
@@ -95,30 +156,51 @@ class BasePattern():
             body = body + " ,\n"
 
         tail = " ) \n\n"
-        norm = f"normalization: {self.norm}\n"
+        normalize = f"normalization: {self.normalize}\n"
 
-        return title + head + body + tail + norm
+        return title + head + body + tail + normalize
+
+    # def table(self):
+    #     headers = ['Pattern', 'dX', 'dY', 'Weight']
+    #     table = []
+    #     for i in range(self.num_pattern):
+    #         pattern_len = len(self.pattern[i]["indices"])
+    #         for j in range(pattern_len):
+    #             dx, dy = self.pattern[i]["indices"][j]
+    #             weight = self.pattern[i]["weights"][j]
+    #             table.append([i, dx, dy, weight])
+    #
+    #     title = f"{self.label} pattern: \n\n"
+    #     normalize = f"\n\nnormalization: {self.normalize}\n"
+    #     return title + tabulate.tabulate(table, headers, tablefmt="github") + normalize
 
     def table(self):
-        headers = ['Pattern', 'dX', 'dY', 'Weight']
-        table = []
+        title = f"{self.label} pattern: \n\n"
+        headers = ["Pattern", "dX", "dY", "Weight"]
+        width = [len(h) + 2 for h in headers]
+
+        table = "|"
+        for k in range(len(headers)):
+            table += headers[k].center(width[k] + 2) + "|"
+        table += "\n|"
+        for k in range(len(headers)):
+            table += "-" * (width[k] + 2) + "|"
+
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
             for j in range(pattern_len):
                 dx, dy = self.pattern[i]["indices"][j]
                 weight = self.pattern[i]["weights"][j]
-                table.append([i, dx, dy, weight])
+                data = [i, dx, dy, weight]
+                table += "\n|"
+                for k in range(len(headers)):
+                    table += str(data[k]).rjust(width[k] + 1) + " |"
 
-        return f'{self.label} pattern: \n\n' + \
-               tabulate.tabulate(table, headers, tablefmt="github") + \
-               f'\n\nnormalization: {self.norm}\n'
+        normalize = f"\n\nnormalization: {self.normalize}\n"
+        return title + table + normalize
 
-    def plot(self):
-        alpha = .55
-        fudge = [0, 0]
-
+    def plot_matplotlib(self):
         fig, ax = plt.subplots(figsize=(6, 6))
-
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
             px, py = zip(*self.pattern[i]["indices"])
@@ -128,17 +210,25 @@ class BasePattern():
             for j in range(pattern_len):
                 weight = self.pattern[i]["weights"][j]
                 if weight == -1:
-                    ax.plot(px[j], py[j], 'o', color="red")
+                    ax.plot(px[j], py[j], "o", color="red")
                 else:
-                    fudge = (0.05*abs(py[j]-py[j-1]), -0.12*abs(px[j]-px[j-1]))
-                    xh = alpha * px[j-1] + (1 - alpha) * px[j] + fudge[0]
-                    yh = alpha * py[j-1] + (1 - alpha) * py[j] + fudge[1]
-                    ax.annotate(str(weight), (xh, yh) )
+                    alpha = 0.55
+                    fudge = (
+                        0.05 * abs(py[j] - py[j - 1]),
+                        -0.12 * abs(px[j] - px[j - 1]),
+                    )
+                    xh = alpha * px[j - 1] + (1 - alpha) * px[j] + fudge[0]
+                    yh = alpha * py[j - 1] + (1 - alpha) * py[j] + fudge[1]
+                    ax.annotate(str(weight), (xh, yh))
                     ax.plot(px[j], py[j], color="blue", marker="o", fillstyle="none")
-                    ax.annotate("", xy=(px[j], py[j]), xytext=(px[j-1], py[j-1]),
-                                arrowprops=dict(arrowstyle="->", linewidth=1,
-                                                shrinkA=10, shrinkB=10)
-                                )
+                    ax.annotate(
+                        "",
+                        xy=(px[j], py[j]),
+                        xytext=(px[j - 1], py[j - 1]),
+                        arrowprops=dict(
+                            arrowstyle="->", linewidth=1, shrinkA=10, shrinkB=10
+                        ),
+                    )
         min_x = np.min(self.array[:, :, 0])
         min_y = np.min(self.array[:, :, 1])
         ax.set_xlim([min_x - 0.5, 0.5])
@@ -152,16 +242,21 @@ class BasePattern():
         return ax
 
     def plot_graph(self):
-        """Show step pattern.
-        """
+        """Show step pattern."""
         plt.figure(figsize=(6, 6))
         if not hasattr(self, "_graph"):
             self._gen_graph()
-        nx.draw_networkx_nodes(self._graph, pos=self._graph_layout, node_color=self._node_colors, node_size=20, alpha=0.8)
+        nx.draw_networkx_nodes(
+            self._graph,
+            pos=self._graph_layout,
+            node_color=self._node_colors,
+            node_size=20,
+            alpha=0.8,
+        )
         nx.draw_networkx_edges(self._graph, pos=self._graph_layout)
-        nx.draw_networkx_edge_labels(self._graph,
-                                     pos=self._graph_layout,
-                                     edge_labels=self._edge_labels)
+        nx.draw_networkx_edge_labels(
+            self._graph, pos=self._graph_layout, edge_labels=self._edge_labels
+        )
         min_x = np.min(self.array[:, :, 0])
         min_y = np.min(self.array[:, :, 1])
         plt.xlim([min_x - 0.5, 0.5])
@@ -171,175 +266,488 @@ class BasePattern():
         plt.ylabel("reference index")
         plt.show()
 
-    def __repr__depr(self):
-        pattern = self.pattern
-        s = self.label + " pattern: \n\n"
-        for i in range(self.num_pattern):
-            s += "pattern " + str(i) + ": "
-            pattern_len = len(pattern[i]["indices"])
-            p = str(pattern[i]["indices"][0])
-            for j in range(1, pattern_len):
-                p += " - ["
-                p += str(pattern[i]["weights"][j])
-                p += "] - "
-                p += str(pattern[i]["indices"][j])
-            s += p + "\n"
-        s += "\nnormalization: " + self.norm
-        return s
+    def plot(self):
+        self.plot_graph()
+
+    # def __repr__depr(self):
+    #     pattern = self.pattern
+    #     s = self.label + " pattern: \n\n"
+    #     for i in range(self.num_pattern):
+    #         s += "pattern " + str(i) + ": "
+    #         pattern_len = len(pattern[i]["indices"])
+    #         p = str(pattern[i]["indices"][0])
+    #         for j in range(1, pattern_len):
+    #             p += " - ["
+    #             p += str(pattern[i]["weights"][j])
+    #             p += "] - "
+    #             p += str(pattern[i]["indices"][j])
+    #         s += p + "\n"
+    #     s += "\nnormalization: " + self.normalize
+    #     return s
+
 
 class Symmetric1(BasePattern):
     label = "symmetric1"
     pattern = [
-        dict(
-            indices=[(-1, 0), (0, 0)],
-            weights=[-1, 1]
-        ),
-        dict(
-            indices=[(-1, -1), (0, 0)],
-            weights=[-1, 1]
-        ),
-        dict(
-            indices=[(0, -1), (0, 0)],
-            weights=[-1, 1]
-        )
+        dict(indices=[(-1, 0), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(0, -1), (0, 0)], weights=[-1, 1]),
     ]
-    norm = "none"
+    normalize = "none"
 
     def __init__(self):
         super().__init__()
+
+
+class Symmetric2(BasePattern):
+    label = "symmetric2"
+    pattern = [
+        dict(indices=[(-1, 0), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(0, -1), (0, 0)], weights=[-1, 1]),
+    ]
+    normalize = "N+M"
+
+    def __init__(self):
+        super().__init__()
+
+
+class SymmetricP0(Symmetric2):
+    """Same as symmetric2 pattern."""
+
+    label = "symmetricP05"
+
 
 class SymmetricP05(BasePattern):
     label = "symmetricP05"
     pattern = [
-        dict(
-            indices=[(-1, -3), (0, -2), (0, -1), (0, 0)],
-            weights=[-1, 2, 1, 1]
-        ),
-        dict(
-            indices=[(-1, -2), (0, -1), (0, 0)],
-            weights=[-1, 2, 1]
-        ),
-        dict(
-            indices=[(-1, -1), (0, 0)],
-            weights=[-1, 2]
-        ),
-        dict(
-            indices=[(-2, -1), (-1, 0), (0, 0)],
-            weights=[-1, 2, 1]
-        ),
-        dict(
-            indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)],
-            weights=[-1, 2, 1, 1]
-        )
+        dict(indices=[(-1, -3), (0, -2), (0, -1), (0, 0)], weights=[-1, 2, 1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 1]),
+        dict(indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 2, 1, 1]),
     ]
-    norm = "N+M"
+    normalize = "N+M"
 
     def __init__(self):
         super().__init__()
 
-a = SymmetricP05()
-print(a)
-print(a.array)
-a.plot()
-print(a.table())
-a.plot_graph()
+
+class SymmetricP1(BasePattern):
+    label = "symmetricP1"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 2, 1]),
+    ]
+    normalize = "N+M"
+
+    def __init__(self):
+        super().__init__()
 
 
+class SymmetricP2(BasePattern):
+    label = "symmetricP2"
+    pattern = [
+        dict(indices=[(-3, -2), (-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(-2, -3), (-1, -2), (0, -1), (0, 0)], weights=[-1, 2, 2, 1]),
+    ]
+    normalize = "N+M"
 
-class Step:
-    def __init__(self, dx, dy, cost):
-        self.dx = dx
-        self.dy = dy
-        self.cost = cost
+    def __init__(self):
+        super().__init__()
 
-    @property
-    def dx(self) -> int:
-        return self._dx
 
-    @dx.setter
-    def dx(self, dx: int) -> None:
-        self._dx = dx
+class Asymmetric(BasePattern):
+    label = "asymmetric"
+    pattern = [
+        dict(indices=[(-1, 0), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
+    ]
+    normalize = "N"
 
-    @property
-    def dy(self) -> int:
-        return self._dy
+    def __init__(self):
+        super().__init__()
 
-    @dy.setter
-    def dy(self, dy: int) -> None:
-        self._dy = dy
 
-    @property
-    def cost(self) -> int:
-        return self._cost
+class AsymmetricP0(BasePattern):
+    label = "asymmetricP0"
+    pattern = [
+        dict(indices=[(0, -1), (0, 0)], weights=[-1, 0]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, 0), (0, 0)], weights=[-1, 1]),
+    ]
+    normalize = "N"
 
-    @cost.setter
-    def cost(self, cost: int) -> None:
-        self._cost = cost
+    def __init__(self):
+        super().__init__()
 
-    def __str__(self):
-        return f'Step dx:{self.dx} dy:{self.dy} cost:{self.cost}'
 
-    def to_numpy(self):
-        return np.array([self.dx, self.dy, self.cost])
+class AsymmetricP05(BasePattern):
+    label = "asymmetricP05"
+    pattern = [
+        dict(
+            indices=[(-1, -3), (0, -2), (0, -1), (0, 0)],
+            weights=[-1, 1 / 3, 1 / 3, 1 / 3],
+        ),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 0.5, 0.5]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
+    ]
+    normalize = "N"
 
-import tabulate
-class StepPattern:
-    def __init__(self, name, steps=[], norm='NA'):
-        self.name = name
-        self.steps = steps
-        self.norm = norm
+    def __init__(self):
+        super().__init__()
 
-    @property
-    def name(self) -> str:
-        return self._name
 
-    @name.setter
-    def name(self, name: str) -> None:
-        self._name = name
+class AsymmetricP1(BasePattern):
+    label = "asymmetricP1"
+    pattern = [
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 0.5, 0.5]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+    ]
+    normalize = "N"
 
-    @property
-    def steps(self) -> list:
-        return self._steps
+    def __init__(self):
+        super().__init__()
 
-    @steps.setter
-    def steps(self, steps: list) -> None:
-        self._steps = steps
 
-    @property
-    def norm(self) -> str:
-        return self._norm
+class AsymmetricP2(BasePattern):
+    label = "asymmetricP2"
+    pattern = [
+        dict(
+            indices=[(-2, -3), (-1, -2), (0, -1), (0, 0)],
+            weights=[-1, 2 / 3, 2 / 3, 2 / 3],
+        ),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-3, -2), (-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
+    ]
+    normalize = "N"
 
-    @norm.setter
-    def norm(self, norm: str) -> None:
-        self._norm = norm
+    def __init__(self):
+        super().__init__()
 
-    def add_step(self, step):
-        self.steps.append(step)
 
-    def del_step(self, step):
-        self.steps.remove(step)
+class TypeIa(BasePattern):
+    label = "typeIa"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 0]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1, 0]),
+    ]
+    normalize = "none"
 
-    def __str__(self):
-        headers = ['Step', 'dX', 'dY', 'Cost']
-        table = []
-        for step in self.steps:
-            table.append([step.dx, step.dy, step.cost])
-        return  f'StepPattern: {self.name}\nNormalization: {self.norm}\n' + \
-                tabulate.tabulate(table, headers, tablefmt="github", showindex="always")
+    def __init__(self):
+        super().__init__()
 
-    def to_numpy(self):
-        return np.stack([step.to_numpy() for step in self.steps])
 
-# ## Well-known step patterns
-# ## White-Neely symmetric (default) aka Quasi-symmetric \cite{White1976}
-# symmetric1 = StepPattern('symmetric1', [Step(1, 1, 1), Step(0, 1, 1), Step(1, 0, 1)])
-# ## Normal symmetric
-# symmetric2 = StepPattern('symmetric2', [Step(1, 1, 2), Step(0, 1, 1), Step(1, 0, 1)], 'N+M')
-# ## classic asymmetric pattern: max slope 2, min slope 0
-# asymmetric = StepPattern('asymmetric', [Step(1, 0, 1), Step(1, 1, 1), Step(1, 2, 1)], 'N')
-#
-# print(symmetric2)
-# print(asymmetric)
-#
-# ## Completely unflexible: fixed slope 1. Only makes sense with open.begin and open.end
-# rigid = StepPattern('rigid', [Step(1,1,1)], 'N')
+class TypeIb(BasePattern):
+    label = "typeIb"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1, 1]),
+    ]
+    normalize = "none"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIc(BasePattern):
+    label = "typeIc"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1, 0]),
+    ]
+    normalize = "N"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeId(BasePattern):
+    label = "typeId"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 2, 1]),
+    ]
+    normalize = "N+M"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIas(BasePattern):
+    label = "typeIas"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 0.5, 0.5]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 0.5, 0.5]),
+    ]
+    normalize = "none"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIbs(BasePattern):
+    label = "typeIbs"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1, 1]),
+    ]
+    normalize = "none"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIcs(BasePattern):
+    label = "typeIcs"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 0.5, 0.5]),
+    ]
+    normalize = "N"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIds(BasePattern):
+    label = "typeIds"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1.5, 1.5]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1.5, 1.5]),
+    ]
+    normalize = "N+M"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIIa(BasePattern):
+    label = "typeIIa"
+    pattern = [
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-2, -1), (0, 0)], weights=[-1, 1]),
+    ]
+    normalize = "none"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIIb(BasePattern):
+    label = "typeIIb"
+    pattern = [
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(-2, -1), (0, 0)], weights=[-1, 2]),
+    ]
+    normalize = "none"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIIc(BasePattern):
+    label = "typeIIc"
+    pattern = [
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-2, -1), (0, 0)], weights=[-1, 2]),
+    ]
+    normalize = "none"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIId(BasePattern):
+    label = "typeIId"
+    pattern = [
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 3]),
+        dict(indices=[(-2, -1), (0, 0)], weights=[-1, 3]),
+    ]
+    normalize = "N+M"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIIIc(BasePattern):
+    label = "typeIIIc"
+    pattern = [
+        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-2, -2), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+    ]
+    normalize = "N"
+
+    def __init__(self):
+        super().__init__()
+
+
+class TypeIVc(BasePattern):
+    label = "typeIVc"
+    pattern = [
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -3), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-2, -2), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-2, -3), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
+        dict(indices=[(-3, -2), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
+        dict(indices=[(-3, -3), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
+    ]
+    normalize = "N"
+
+    def __init__(self):
+        super().__init__()
+
+
+class Mori2006(BasePattern):
+    label = "mori2006"
+    pattern = [
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 3]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 3, 3]),
+    ]
+    normalize = "M"
+
+    def __init__(self):
+        super().__init__()
+
+
+class Unitary(BasePattern):
+    label = "unitary"
+    pattern = [
+        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+    ]
+    normalize = "N"
+
+    def __init__(self):
+        super().__init__()
+
+
+class UserStepPattern(BasePattern):
+    label = "user defined step pattern"
+
+    def __init__(self, pattern, normalize):
+        """User defined step pattern.
+
+        Parameters
+        ----------
+        pattern : list
+            list contains pattern information.
+            ex) the case of symmetric2 pattern:
+
+                .. code::
+
+                    pattern = [
+                        dict(
+                            indices=[(-1,0),(0,0)],
+                            weights=[-1, 1]
+                        ),
+                        dict(
+                            indices=[(-1,-1),(0,0)],
+                            weights=[-1, 2]
+                        ),
+                        dict(
+                            indices=[(0,-1),(0,0)],
+                            weights=[-1, 1]
+                        )
+                    ]
+
+        normalize : string ('N','M','N+M','none')
+            Guide to compute normalized distance.
+
+        """
+        # validation
+        if normalize not in ("N", "M", "N+M", "none"):
+            raise ValueError(
+                "normalize argument must be \
+                one of followings: 'N','M','N+M','none'"
+            )
+
+        self.pattern = pattern
+        self.normalize = normalize
+        # number of patterns
+        self.num_pattern = len(self.pattern)
+        # max length of pattern
+        self.max_pattern_len = max([len(pi["indices"]) for pi in self.pattern])
+        self._get_array()
+
+
+def get_pattern(pattern_str):
+    if pattern_str == "symmetric1":
+        return Symmetric1()
+    elif pattern_str == "symmetric2":
+        return Symmetric2()
+    elif pattern_str == "symmetricP05":
+        return SymmetricP05()
+    elif pattern_str == "symmetricP0":
+        return SymmetricP0()
+    elif pattern_str == "symmetricP1":
+        return SymmetricP1()
+    elif pattern_str == "symmetricP2":
+        return SymmetricP2()
+    elif pattern_str == "asymmetric":
+        return Asymmetric()
+    elif pattern_str == "asymmetricP0":
+        return AsymmetricP0()
+    elif pattern_str == "asymmetricP05":
+        return AsymmetricP05()
+    elif pattern_str == "asymmetricP1":
+        return AsymmetricP1()
+    elif pattern_str == "asymmetricP2":
+        return AsymmetricP2()
+    elif pattern_str == "typeIa":
+        return TypeIa()
+    elif pattern_str == "typeIb":
+        return TypeIb()
+    elif pattern_str == "typeIc":
+        return TypeIc()
+    elif pattern_str == "typeId":
+        return TypeId()
+    elif pattern_str == "typeIas":
+        return TypeIas()
+    elif pattern_str == "typeIbs":
+        return TypeIbs()
+    elif pattern_str == "typeIcs":
+        return TypeIcs()
+    elif pattern_str == "typeIds":
+        return TypeIds()
+    elif pattern_str == "typeIIa":
+        return TypeIIa()
+    elif pattern_str == "typeIIb":
+        return TypeIIb()
+    elif pattern_str == "typeIIc":
+        return TypeIIc()
+    elif pattern_str == "typeIId":
+        return TypeIId()
+    elif pattern_str == "typeIIIc":
+        return TypeIIIc()
+    elif pattern_str == "typeIVc":
+        return TypeIVc()
+    elif pattern_str == "mori2006":
+        return Mori2006()
+    elif pattern_str == "unitary":
+        return Unitary()
+    else:
+        raise NotImplementedError("given step pattern not supported")
