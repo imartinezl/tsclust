@@ -144,6 +144,16 @@ class UCR_UEA_datasets:
                 basename + "_TEST.%s" % ext
             )
 
+    def cache_all(self):
+        for dataset_name in self.list_datasets():
+            try:
+                self.load_dataset(dataset_name)
+                print(dataset_name)
+            except:
+                sys.stderr.write(
+                    "Could not cache dataset %s properly.\n" % dataset_name
+                )
+
     def load_dataset(self, dataset_name):
         full_path = os.path.join(self._data_dir, dataset_name)
 
