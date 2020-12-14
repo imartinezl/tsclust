@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+This file contains code that was borrowed from tslearn.
+
+BSD 2-Clause License
+
+Copyright (c) 2017, Romain Tavenard
+All rights reserved.
+"""
+
 import numpy as np
 import numba as nb
 import warnings
