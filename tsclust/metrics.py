@@ -22,7 +22,7 @@ jitkw = {
     "debug": True,
 }
 
-__all__ = {
+all = {
     "minkowski",
     "wminkowski",
     "euclidean",
