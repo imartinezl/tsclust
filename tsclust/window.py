@@ -9,11 +9,13 @@ import matplotlib.pyplot as plt
 jitkw = {
     "nopython": True,
     "nogil": True,
-    "cache": False,
+    "cache": True,
     "error_model": "numpy",
     "fastmath": True,
     "debug": True,
 }
+
+__all__ = {"none", "sakoechiba", "itakura", "slanted"}
 
 
 @nb.jit(**jitkw)
@@ -54,6 +56,7 @@ def precompute(window, query_size, reference_size, window_size=None):
             mask[i, j] = window(i, j, query_size, reference_size, window_size)
     return mask
 
+
 @nb.jit(**jitkw)
 def get_position(window, query_size, reference_size, window_size=None):
     mask = precompute(window, query_size, reference_size, window_size)
@@ -72,3 +75,16 @@ def display(mask):
     ax.set_xticks([])
     plt.axis("equal")
     plt.show()
+
+
+def get_window(window_name):
+    if window_name == "sakoechiba":
+        return sakoe_chiba_window
+    elif window_name == "itakura":
+        return itakura_window
+    elif window_name == "slanted":
+        return slanted_band_window
+    elif window_name == "none":
+        return no_window
+    else:
+        raise NotImplementedError("given window type not supported")
