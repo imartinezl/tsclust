@@ -75,7 +75,7 @@ def _compute_global_cost(local_cost, pattern, window, window_size=None):
                         if ii < 0 or jj < 0:
                             step_cost[p, s] = np.inf
                             continue
-                        if weight == -1:
+                        if np.isnana(weight):
                             step_cost[p, s] = cost[ii, jj]
                         else:
                             step_cost[p, s] = local_cost[ii, jj] * weight
@@ -159,7 +159,7 @@ def _get_local_path(pattern, pattern_idx, i, j):
     for s in range(num_steps):
         dx, dy, weight = pattern[pattern_idx, s, :]
         ii, jj = int(i + dx), int(j + dy)
-        if weight == -1:
+        if np.isnan(weight):
             origin = (ii, jj)
         local_path[s, :] = (ii, jj)
     return local_path[::-1], origin
@@ -190,7 +190,7 @@ def _compute_cost(x, y, dist, pattern, window, window_size):
                         if ii < 0 or jj < 0:
                             step_cost[p, s] = np.inf
                             continue
-                        if weight == -1:
+                        if np.isnan(weight):
                             step_cost[p, s] = cost[ii, jj]
                         else:
                             step_cost[p, s] = dist(x[ii], y[jj]) * weight
