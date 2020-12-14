@@ -70,6 +70,7 @@ class BasePattern:
         array = np.zeros([self.num_pattern, self.max_pattern_len, 3], dtype="float")
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
+            self.pattern[i]["weights"].insert(0, np.nan)
             for j in range(pattern_len):
                 array[i, j, 0:2] = self.pattern[i]["indices"][j]
                 array[i, j, 2] = self.pattern[i]["weights"][j]
@@ -82,26 +83,26 @@ class BasePattern:
         node_colors = []
         node_names = []
         # set node
-        for i, pat in enumerate(self.pattern):
-            step_len = len(pat["indices"])
+        for i in range(self.num_pattern):
+            pattern_len = len(self.pattern[i]["indices"])
             nn = []
-            for j in range(step_len):
+            for j in range(pattern_len):
                 node_name = str(i) + str(j)
                 graph.add_node(node_name)
-                graph_layout[node_name] = np.array(pat["indices"][j])
-                if pat["weights"][j] == -1:
+                graph_layout[node_name] = np.array(self.pattern[i]["indices"][j])
+                if np.isnan(self.pattern[i]["weights"][j]):
                     node_colors.append("r")
                 else:
                     node_colors.append("b")
                 nn.append(node_name)
             node_names.append(nn)
         # set edge
-        for i, pat in enumerate(self.pattern):
-            step_len = len(pat["indices"])
-            for j in range(step_len - 1):
+        for i in range(self.num_pattern):
+            pattern_len = len(self.pattern[i]["indices"])
+            for j in range(pattern_len - 1):
                 graph.add_edge(node_names[i][j], node_names[i][j + 1])
                 edge_labels[(node_names[i][j], node_names[i][j + 1])] = str(
-                    pat["weights"][j + 1]
+                    self.pattern[i]["weights"][j + 1]
                 )
         self._graph = graph
         self._graph_layout = graph_layout
@@ -133,6 +134,9 @@ class BasePattern:
             raise Exception()
 
     def __repr__(self):
+        return self.repr_formula()
+
+    def repr_formula(self):
         title = self.label + " pattern: \n\n"
         head = "g[i,j] = min(\n"
 
@@ -146,12 +150,11 @@ class BasePattern:
                 dy_str = "" if dy == 0 else f"{int(dy)}"
                 delta_str = f"i{dx_str:2},j{dy_str:2}"
 
-                if weight == -1:
+                if np.isnan(weight):
                     global_str = f"\tg[{delta_str}]"
                     body = body + " " + global_str
                 else:
-                    weight_str = f"{weight:2.2g} *"
-                    local_str = f"+{weight_str} d[{delta_str}]"
+                    local_str = f"+{weight:2.2g} * d[{delta_str}]"
                     body = body + " " + local_str
             body = body + " ,\n"
 
@@ -160,7 +163,22 @@ class BasePattern:
 
         return title + head + body + tail + normalize
 
-    # def table(self):
+    def repr_graph(self):
+        s = self.label + " pattern: \n\n"
+        for i in range(self.num_pattern):
+            s += "pattern " + str(i) + ": "
+            pattern_len = len(self.pattern[i]["indices"])
+            p = str(self.pattern[i]["indices"][0])
+            for j in range(1, pattern_len):
+                p += " - ["
+                p += str(self.pattern[i]["weights"][j])
+                p += "] - "
+                p += str(self.pattern[i]["indices"][j])
+            s += p + "\n"
+        s += "\nnormalization: " + str(self.normalize)
+        return s
+
+    # def table_tabulate(self):
     #     headers = ['Pattern', 'dX', 'dY', 'Weight']
     #     table = []
     #     for i in range(self.num_pattern):
@@ -203,10 +221,10 @@ class BasePattern:
         fig, ax = plt.subplots(figsize=(6, 6))
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
-            px, py = zip(*self.pattern[i]["indices"])
-
             if pattern_len == 1:
                 continue
+
+            px, py = zip(*self.pattern[i]["indices"])
             for j in range(pattern_len):
                 weight = self.pattern[i]["weights"][j]
                 if weight == -1:
@@ -229,15 +247,15 @@ class BasePattern:
                             arrowstyle="->", linewidth=1, shrinkA=10, shrinkB=10
                         ),
                     )
-        min_x = np.min(self.array[:, :, 0])
-        min_y = np.min(self.array[:, :, 1])
-        ax.set_xlim([min_x - 0.5, 0.5])
-        ax.set_ylim([min_y - 0.5, 0.5])
+        x_ticks = np.unique(self.array[:, :, 0])
+        y_ticks = np.unique(self.array[:, :, 1])
+        ax.set_xlim([np.min(x_ticks) - 0.5, 0.5])
+        ax.set_ylim([np.min(y_ticks) - 0.5, 0.5])
         ax.set_title(self.label + str(" pattern"))
         ax.set_xlabel("Query index")
         ax.set_ylabel("Reference index")
-        ax.set_xticks(np.unique(self.array[:, :, 0]))
-        ax.set_yticks(np.unique(self.array[:, :, 1]))
+        ax.set_xticks(x_ticks)
+        ax.set_yticks(y_ticks)
         plt.show()
         return ax
 
@@ -250,48 +268,35 @@ class BasePattern:
             self._graph,
             pos=self._graph_layout,
             node_color=self._node_colors,
-            node_size=20,
+            node_size=25,
             alpha=0.8,
         )
         nx.draw_networkx_edges(self._graph, pos=self._graph_layout)
         nx.draw_networkx_edge_labels(
             self._graph, pos=self._graph_layout, edge_labels=self._edge_labels
         )
-        min_x = np.min(self.array[:, :, 0])
-        min_y = np.min(self.array[:, :, 1])
-        plt.xlim([min_x - 0.5, 0.5])
-        plt.ylim([min_y - 0.5, 0.5])
+        x_ticks = np.unique(self.array[:, :, 0])
+        y_ticks = np.unique(self.array[:, :, 1])
+        plt.xlim([np.min(x_ticks) - 0.5, 0.5])
+        plt.ylim([np.min(y_ticks) - 0.5, 0.5])
+        plt.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+        plt.xticks(x_ticks)
+        plt.yticks(y_ticks)
         plt.title(self.label + str(" pattern"))
-        plt.xlabel("query index")
-        plt.ylabel("reference index")
+        plt.xlabel("Query index")
+        plt.ylabel("Reference index")
         plt.show()
 
     def plot(self):
         self.plot_graph()
 
-    # def __repr__depr(self):
-    #     pattern = self.pattern
-    #     s = self.label + " pattern: \n\n"
-    #     for i in range(self.num_pattern):
-    #         s += "pattern " + str(i) + ": "
-    #         pattern_len = len(pattern[i]["indices"])
-    #         p = str(pattern[i]["indices"][0])
-    #         for j in range(1, pattern_len):
-    #             p += " - ["
-    #             p += str(pattern[i]["weights"][j])
-    #             p += "] - "
-    #             p += str(pattern[i]["indices"][j])
-    #         s += p + "\n"
-    #     s += "\nnormalization: " + self.normalize
-    #     return s
-
 
 class Symmetric1(BasePattern):
     label = "symmetric1"
     pattern = [
-        dict(indices=[(-1, 0), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(0, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, 0), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(0, -1), (0, 0)], weights=[1]),
     ]
     normalize = "none"
 
@@ -302,9 +307,9 @@ class Symmetric1(BasePattern):
 class Symmetric2(BasePattern):
     label = "symmetric2"
     pattern = [
-        dict(indices=[(-1, 0), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
-        dict(indices=[(0, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, 0), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[2]),
+        dict(indices=[(0, -1), (0, 0)], weights=[1]),
     ]
     normalize = "N+M"
 
@@ -321,11 +326,11 @@ class SymmetricP0(Symmetric2):
 class SymmetricP05(BasePattern):
     label = "symmetricP05"
     pattern = [
-        dict(indices=[(-1, -3), (0, -2), (0, -1), (0, 0)], weights=[-1, 2, 1, 1]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 2, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 1]),
-        dict(indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 2, 1, 1]),
+        dict(indices=[(-1, -3), (0, -2), (0, -1), (0, 0)], weights=[2, 1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[2]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[2, 1]),
+        dict(indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)], weights=[2, 1, 1]),
     ]
     normalize = "N+M"
 
@@ -336,9 +341,9 @@ class SymmetricP05(BasePattern):
 class SymmetricP1(BasePattern):
     label = "symmetricP1"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 2, 1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[2]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[2, 1]),
     ]
     normalize = "N+M"
 
@@ -349,9 +354,9 @@ class SymmetricP1(BasePattern):
 class SymmetricP2(BasePattern):
     label = "symmetricP2"
     pattern = [
-        dict(indices=[(-3, -2), (-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 2, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
-        dict(indices=[(-2, -3), (-1, -2), (0, -1), (0, 0)], weights=[-1, 2, 2, 1]),
+        dict(indices=[(-3, -2), (-2, -1), (-1, 0), (0, 0)], weights=[2, 2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[2]),
+        dict(indices=[(-2, -3), (-1, -2), (0, -1), (0, 0)], weights=[2, 2, 1]),
     ]
     normalize = "N+M"
 
@@ -362,9 +367,9 @@ class SymmetricP2(BasePattern):
 class Asymmetric(BasePattern):
     label = "asymmetric"
     pattern = [
-        dict(indices=[(-1, 0), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, 0), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[1]),
     ]
     normalize = "N"
 
@@ -375,9 +380,9 @@ class Asymmetric(BasePattern):
 class AsymmetricP0(BasePattern):
     label = "asymmetricP0"
     pattern = [
-        dict(indices=[(0, -1), (0, 0)], weights=[-1, 0]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, 0), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(0, -1), (0, 0)], weights=[0]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, 0), (0, 0)], weights=[1]),
     ]
     normalize = "N"
 
@@ -390,12 +395,12 @@ class AsymmetricP05(BasePattern):
     pattern = [
         dict(
             indices=[(-1, -3), (0, -2), (0, -1), (0, 0)],
-            weights=[-1, 1 / 3, 1 / 3, 1 / 3],
+            weights=[1 / 3, 1 / 3, 1 / 3],
         ),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 0.5, 0.5]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
-        dict(indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[0.5, 0.5]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
+        dict(indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)], weights=[1, 1, 1]),
     ]
     normalize = "N"
 
@@ -406,9 +411,9 @@ class AsymmetricP05(BasePattern):
 class AsymmetricP1(BasePattern):
     label = "asymmetricP1"
     pattern = [
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 0.5, 0.5]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[0.5, 0.5]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
     ]
     normalize = "N"
 
@@ -421,10 +426,10 @@ class AsymmetricP2(BasePattern):
     pattern = [
         dict(
             indices=[(-2, -3), (-1, -2), (0, -1), (0, 0)],
-            weights=[-1, 2 / 3, 2 / 3, 2 / 3],
+            weights=[2 / 3, 2 / 3, 2 / 3],
         ),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-3, -2), (-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-3, -2), (-2, -1), (-1, 0), (0, 0)], weights=[1, 1, 1]),
     ]
     normalize = "N"
 
@@ -435,9 +440,9 @@ class AsymmetricP2(BasePattern):
 class TypeIa(BasePattern):
     label = "typeIa"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 0]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1, 0]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 0]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[1, 0]),
     ]
     normalize = "none"
 
@@ -448,9 +453,9 @@ class TypeIa(BasePattern):
 class TypeIb(BasePattern):
     label = "typeIb"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[1, 1]),
     ]
     normalize = "none"
 
@@ -461,9 +466,9 @@ class TypeIb(BasePattern):
 class TypeIc(BasePattern):
     label = "typeIc"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1, 0]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[1, 0]),
     ]
     normalize = "N"
 
@@ -474,9 +479,9 @@ class TypeIc(BasePattern):
 class TypeId(BasePattern):
     label = "typeId"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 2, 1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[2]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[2, 1]),
     ]
     normalize = "N+M"
 
@@ -487,9 +492,9 @@ class TypeId(BasePattern):
 class TypeIas(BasePattern):
     label = "typeIas"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 0.5, 0.5]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 0.5, 0.5]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[0.5, 0.5]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[0.5, 0.5]),
     ]
     normalize = "none"
 
@@ -500,9 +505,9 @@ class TypeIas(BasePattern):
 class TypeIbs(BasePattern):
     label = "typeIbs"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[1, 1]),
     ]
     normalize = "none"
 
@@ -513,9 +518,9 @@ class TypeIbs(BasePattern):
 class TypeIcs(BasePattern):
     label = "typeIcs"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 0.5, 0.5]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[0.5, 0.5]),
     ]
     normalize = "N"
 
@@ -526,9 +531,9 @@ class TypeIcs(BasePattern):
 class TypeIds(BasePattern):
     label = "typeIds"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1.5, 1.5]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 1.5, 1.5]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1.5, 1.5]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[2]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[1.5, 1.5]),
     ]
     normalize = "N+M"
 
@@ -539,9 +544,9 @@ class TypeIds(BasePattern):
 class TypeIIa(BasePattern):
     label = "typeIIa"
     pattern = [
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-2, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[1]),
+        dict(indices=[(-2, -1), (0, 0)], weights=[1]),
     ]
     normalize = "none"
 
@@ -552,9 +557,9 @@ class TypeIIa(BasePattern):
 class TypeIIb(BasePattern):
     label = "typeIIb"
     pattern = [
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 2]),
-        dict(indices=[(-2, -1), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[2]),
+        dict(indices=[(-2, -1), (0, 0)], weights=[2]),
     ]
     normalize = "none"
 
@@ -565,9 +570,9 @@ class TypeIIb(BasePattern):
 class TypeIIc(BasePattern):
     label = "typeIIc"
     pattern = [
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-2, -1), (0, 0)], weights=[-1, 2]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[1]),
+        dict(indices=[(-2, -1), (0, 0)], weights=[2]),
     ]
     normalize = "none"
 
@@ -578,9 +583,9 @@ class TypeIIc(BasePattern):
 class TypeIId(BasePattern):
     label = "typeIId"
     pattern = [
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 2]),
-        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 3]),
-        dict(indices=[(-2, -1), (0, 0)], weights=[-1, 3]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[2]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[3]),
+        dict(indices=[(-2, -1), (0, 0)], weights=[3]),
     ]
     normalize = "N+M"
 
@@ -591,10 +596,10 @@ class TypeIId(BasePattern):
 class TypeIIIc(BasePattern):
     label = "typeIIIc"
     pattern = [
-        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
-        dict(indices=[(-2, -2), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
+        dict(indices=[(-2, -2), (-1, 0), (0, 0)], weights=[1, 1]),
     ]
     normalize = "N"
 
@@ -605,15 +610,15 @@ class TypeIIIc(BasePattern):
 class TypeIVc(BasePattern):
     label = "typeIVc"
     pattern = [
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -2), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-1, -3), (0, 0)], weights=[-1, 1]),
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
-        dict(indices=[(-2, -2), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
-        dict(indices=[(-2, -3), (-1, 0), (0, 0)], weights=[-1, 1, 1]),
-        dict(indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
-        dict(indices=[(-3, -2), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
-        dict(indices=[(-3, -3), (-2, 0), (-1, 0), (0, 0)], weights=[-1, 1, 1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -2), (0, 0)], weights=[1]),
+        dict(indices=[(-1, -3), (0, 0)], weights=[1]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
+        dict(indices=[(-2, -2), (-1, 0), (0, 0)], weights=[1, 1]),
+        dict(indices=[(-2, -3), (-1, 0), (0, 0)], weights=[1, 1]),
+        dict(indices=[(-3, -1), (-2, 0), (-1, 0), (0, 0)], weights=[1, 1, 1]),
+        dict(indices=[(-3, -2), (-2, 0), (-1, 0), (0, 0)], weights=[1, 1, 1]),
+        dict(indices=[(-3, -3), (-2, 0), (-1, 0), (0, 0)], weights=[1, 1, 1]),
     ]
     normalize = "N"
 
@@ -624,9 +629,9 @@ class TypeIVc(BasePattern):
 class Mori2006(BasePattern):
     label = "mori2006"
     pattern = [
-        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[-1, 2, 1]),
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 3]),
-        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[-1, 3, 3]),
+        dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[2, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[3]),
+        dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[3, 3]),
     ]
     normalize = "M"
 
@@ -637,7 +642,7 @@ class Mori2006(BasePattern):
 class Unitary(BasePattern):
     label = "unitary"
     pattern = [
-        dict(indices=[(-1, -1), (0, 0)], weights=[-1, 1]),
+        dict(indices=[(-1, -1), (0, 0)], weights=[1]),
     ]
     normalize = "N"
 
@@ -662,15 +667,15 @@ class UserStepPattern(BasePattern):
                     pattern = [
                         dict(
                             indices=[(-1,0),(0,0)],
-                            weights=[-1, 1]
+                            weights=[1]
                         ),
                         dict(
                             indices=[(-1,-1),(0,0)],
-                            weights=[-1, 2]
+                            weights=[2]
                         ),
                         dict(
                             indices=[(0,-1),(0,0)],
-                            weights=[-1, 1]
+                            weights=[1]
                         )
                     ]
 
