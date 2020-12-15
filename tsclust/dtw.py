@@ -4,6 +4,7 @@
 import numpy as np
 import numba as nb
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from scipy.spatial.distance import cdist
 import timeit
 
@@ -69,14 +70,23 @@ def dtw(
     print(dist, normalized_dist)
 
     path = None
+    path_aux = None
     if compute_path:
         path, path_aux = _backtrack(direction, pattern.array)
 
     print(path, path_aux)
-    dtw_result = DtwResult(cost, path, window, pattern)
-    dtw_result.plot_cost_matrix()
-    dtw_result.plot_pattern()
-    dtw_result.plot_path()
+    dtw_result = DtwResult(x, y, cost, path, window,
+                           pattern, dist, normalized_dist)
+    # dtw_result.plot_cost_matrix()
+    # dtw_result.plot_pattern()
+    # dtw_result.plot_path()
+    # # dtw_result.plot_ts_subplot(x, "Query")
+    # dtw_result.plot_ts_overlay(x, "Query")
+    # dtw_result.plot_ts_overlay(y, "Reference")
+    dtw_result.plot_summary()
+
+    plt.show()
+    return dtw_result
 
 
 @nb.jit(**jitkw)
@@ -124,6 +134,7 @@ def _compute_cost(x, y, dist, pattern, window, window_size):
 
     return cost, direction
 
+
 @nb.jit(**jitkw)
 def _compute_cost_open_end(local_cost, pattern, window, window_size):
     n, m = local_cost.shape
@@ -137,7 +148,7 @@ def _compute_cost_open_end(local_cost, pattern, window, window_size):
 
     num_pattern = pattern.shape[0]
     max_pattern_len = pattern.shape[1]
-    pattern_cost = np.zeros(num_pattern, dtype=np.float64)
+    # pattern_cost = np.zeros(num_pattern, dtype=np.float64)
     step_cost = np.zeros((num_pattern, max_pattern_len), dtype=np.float64)
 
     for i in range(n):
@@ -183,7 +194,7 @@ def _compute_global_cost(local_cost, pattern, window, window_size=None):
 
     num_pattern = pattern.shape[0]
     max_pattern_len = pattern.shape[1]
-    pattern_cost = np.zeros(num_pattern, dtype=np.float64)
+    # pattern_cost = np.zeros(num_pattern, dtype=np.float64)
     step_cost = np.zeros((num_pattern, max_pattern_len), dtype=np.float64)
 
     for i in range(n):
@@ -273,7 +284,9 @@ class DtwResult:
         Normalized alignment distance.
     """
 
-    def __init__(self, cost, path, window, pattern):
+    def __init__(self, x, y, cost, path, window, pattern, dist, normalized_dist):
+        self.x = x
+        self.y = y
         self.cost = cost
 
         if path is None:
@@ -284,6 +297,8 @@ class DtwResult:
 
         self.window = window
         self.pattern = pattern
+        self.dist = dist
+        self.normalized_dist = normalized_dist
 
     def get_warping_path(self, target="query"):
         """Get warping path.
@@ -317,38 +332,120 @@ class DtwResult:
 
         return warping_index
 
-    def plot_cost_matrix(self):
-        fig, ax = plt.subplots(1)
-        pos = ax.imshow(
-            self.cost.T,
-            origin = 'lower',
-            cmap = 'inferno',
-            # interpolation = 'none',
-            vmin = 0,
-        )
-        plt.colorbar(pos)
+    def plot_cost_matrix(self, labels = True, ax=None, pax=None):
+        if ax is None:
+            fig, ax = plt.subplots(1)
+        im = ax.imshow(self.cost.T, origin='lower', cmap='inferno', vmin=0, aspect='auto')
+        if pax is None:
+            from mpl_toolkits.axes_grid1 import make_axes_locatable
+            divider = make_axes_locatable(ax)
+            pax = divider.append_axes("bottom", size="5%", pad=0.05)
+            plt.colorbar(im, cax=pax, orientation="horizontal")
+        else:
+            plt.colorbar(im, cax=pax)
         if self.compute_path:
-            ax.plot(self.path[:, 0], self.path[:, 1], c="red")
+            ax.plot(self.path[:, 0], self.path[:, 1], color="white", alpha=0.9)
             # ax.plot(self.path[:, 0], self.path[:, 1], c="red", marker='o', markersize=1)
-        ax.set_xlabel("Query Index")
-        ax.set_ylabel("Reference Index")
-        ax.set_title("Cost matrix")
-        plt.show()
+        if labels:
+            ax.set_xlabel("Query Index")
+            ax.set_ylabel("Reference Index")
+            ax.set_title("Cost matrix")
+        else:
+            ax.set_axis_off()
+            pass
 
-    def plot_path(self):
-        """Plot alignment path.
-        """
+        return ax
+
+    def plot_path(self, ax):
         if not self.compute_path:
             raise Exception("Alignment path not calculated.")
-        fig, ax = plt.subplots(1)
+        if ax is None:
+            fig, ax = plt.subplots(1)
         ax.plot(self.path[:, 0], self.path[:, 1])
         ax.set_title("Alignment Path")
         ax.set_xlabel("Query Index")
         ax.set_ylabel("Reference Index")
-        plt.show()
+        return ax
 
-    def plot_pattern(self):
-        self.pattern.plot()
+    def plot_pattern(self, labels=True, ax=None):
+        # if ax is None:
+        #     fig, ax = plt.subplots(1)
+        return self.pattern.plot(labels, ax)
+
+    def plot_ts_subplot(self, data, title):
+        d = data.shape[1]
+        fig, ax = plt.subplots(nrows=d, ncols=1, sharex=True, constrained_layout=True)
+        for i in range(d):
+            ax[i].plot(data[:,i])
+            ax[i].set_ylabel(f"dim.{i}")
+        plt.xlabel("Time Index")
+        fig.suptitle(title)
+
+
+    def plot_ts_overlay(self, data, title, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(1, constrained_layout=True)
+        for i in range(data.shape[1]):
+            ax.plot(data[:,i])
+        ax.set_xlabel("Time Index")
+        ax.set_title(title)
+
+    def plot_ts_query(self, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(1, constrained_layout=True)
+        n, d = self.x.shape
+        t = np.arange(n)
+        for i in range(d):
+            ax.plot(t, self.x[:,i], color="black", alpha=0.9)
+        ax.set_xlabel("Query X")
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.tick_params(axis="x", which="both", bottom=False, labelbottom=False)
+
+
+    def plot_ts_reference(self, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(1, constrained_layout=True)
+        n, d = self.y.shape
+        t = np.arange(n)
+        for i in range(d):
+            ax.plot(self.y[:,i], t, color="black", alpha=0.9)
+        ax.invert_xaxis()
+        ax.set_ylabel("Reference Y")
+        ax.yaxis.tick_right()
+        ax.spines['left'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.tick_params(axis="y", which="both", right=False, labelright=False)
+
+    def plot_summary(self):
+        n = x.shape[0]
+        m = y.shape[0]
+        h = min(n, m)/2.5
+        fig = plt.figure(constrained_layout=True, figsize=(10,10))
+        spec = fig.add_gridspec(ncols=3, nrows=2,
+                                 width_ratios=[h, n, n*0.05],
+                                 height_ratios=[m, h])
+        title = f"DTW: {self.dist:.2f} "
+        if self.normalized_dist is not None:
+            title += f"Normalized: {self.normalized_dist:.2f}"
+        fig.suptitle(title)
+
+        ax = fig.add_subplot(spec[0, 1])
+        pax = fig.add_subplot(spec[0, 2])
+        self.plot_cost_matrix(False, ax, pax)
+
+        ax = fig.add_subplot(spec[1, 0])
+        self.plot_pattern(False, ax)
+
+        ax = fig.add_subplot(spec[1, 1])
+        self.plot_ts_query(ax)
+
+        ax = fig.add_subplot(spec[0, 0])
+        self.plot_ts_reference(ax)
+
+
+
+
 
 
 # TO-DO
@@ -364,20 +461,19 @@ x = np.array([1, 2, 3, 4])
 y = np.array([2, 3, 3, 8])
 
 
-x = np.array([[1, 1], [2, 2], [3, 3], [4, 4]])
+x = np.array([[1, 1], [2, 2], [2, 3], [4, 4]])
 y = np.array([[2, 2], [3, 3], [3, 3], [8, 8]])
 
 x = np.array([1, 2, 3, 4, 3, 2, 1, 1, 1, 2])
 y = np.array([0, 1, 1, 2, 3, 4, 3, 2, 1, 1])
 
-np.random.seed(1234)
-# generate toy data
-x = np.sin(2 * np.pi * 3.1 * np.linspace(0, 1, 101))
-x += np.random.rand(x.size)
-y = np.sin(2 * np.pi * 3 * np.linspace(0, 1, 120))
-y += np.random.rand(y.size)
+# np.random.seed(1234)
+# x = np.sin(2 * np.pi * 3.1 * np.linspace(0, 1, 101))
+# x += np.random.rand(x.size)
+# y = np.sin(2 * np.pi * 3 * np.linspace(0, 1, 120))
+# y += np.random.rand(y.size)
 
-dtw(x, y)
+result = dtw(x, y)
 
 # print(nb.threading_layer())
 # print(nb.get_num_threads())
