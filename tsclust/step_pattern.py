@@ -53,6 +53,7 @@ all = {
     "unitary",
 }
 
+
 def _num_to_str(num):
     if type(num) == int:
         return str(num)
@@ -60,7 +61,6 @@ def _num_to_str(num):
         return "{0:1.2f}".format(num)
     else:
         return str(num)
-
 
 
 class BasePattern:
@@ -80,7 +80,7 @@ class BasePattern:
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
             weight_len = len(self.pattern[i]["weights"])
-            if weight_len == pattern_len-1:
+            if weight_len == pattern_len - 1:
                 self.pattern[i]["weights"].insert(0, -1)
             for j in range(pattern_len):
                 array[i, j, 0:2] = self.pattern[i]["indices"][j]
@@ -112,8 +112,9 @@ class BasePattern:
             pattern_len = len(self.pattern[i]["indices"])
             for j in range(pattern_len - 1):
                 graph.add_edge(node_names[i][j], node_names[i][j + 1])
-                edge_labels[(node_names[i][j], node_names[i][j + 1])] = \
-                    _num_to_str(self.pattern[i]["weights"][j + 1])
+                edge_labels[(node_names[i][j], node_names[i][j + 1])] = _num_to_str(
+                    self.pattern[i]["weights"][j + 1]
+                )
         self._graph = graph
         self._graph_layout = graph_layout
         self._edge_labels = edge_labels
@@ -269,7 +270,6 @@ class BasePattern:
             ax.set_xlabel("Query index")
             ax.set_ylabel("Reference index")
 
-
     def plot_graph(self, labels=True, ax=None):
         """Show step pattern."""
         if ax is None:
@@ -298,7 +298,6 @@ class BasePattern:
             ax.set_title(self.label + " pattern")
             ax.set_xlabel("Query index")
             ax.set_ylabel("Reference index")
-
 
     def plot(self, labels=True, ax=None):
         self.plot_graph(labels, ax)
