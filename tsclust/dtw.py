@@ -4,19 +4,16 @@
 import numpy as np
 import numba as nb
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-from scipy.spatial.distance import cdist
+
+# from scipy.spatial.distance import cdist
 import timeit
 
 from metrics import get_metric
 from step_pattern import get_pattern
 from window import get_window
 from utils import validate_time_series
+from result import DtwResult
 
-# import metrics
-# import step_pattern
-# import window
-# import utils
 
 # Benchmark with:
 # https://github.com/ricardodeazambuja/DTW
@@ -75,8 +72,7 @@ def dtw(
         path, path_aux = _backtrack(direction, pattern.array)
 
     print(path, path_aux)
-    dtw_result = DtwResult(x, y, cost, path, window,
-                           pattern, dist, normalized_dist)
+    dtw_result = DtwResult(x, y, cost, path, window, pattern, dist, normalized_dist)
     # dtw_result.plot_cost_matrix()
     # dtw_result.plot_pattern()
     # dtw_result.plot_path()
@@ -84,6 +80,7 @@ def dtw(
     # dtw_result.plot_ts_overlay(x, "Query")
     # dtw_result.plot_ts_overlay(y, "Reference")
     dtw_result.plot_summary()
+    dtw_result.plot_warp()
 
     plt.show()
     return dtw_result
@@ -175,7 +172,6 @@ def _compute_cost_open_end(local_cost, pattern, window, window_size):
     return cost
 
 
-
 @nb.jit(**jitkw)
 def _compute_local_cost(x, y, dist, weight=None):
     n = len(x)
@@ -245,7 +241,7 @@ def _backtrack(direction, pattern):
         pattern_idx = int(direction[i, j])
         local_path, origin = _get_local_path(pattern, pattern_idx, i, j)
         path = np.vstack((path, local_path))
-        path_aux = np.vstack((path_aux,  np.array((origin,), dtype=np.int64)))
+        path_aux = np.vstack((path_aux, np.array((origin,), dtype=np.int64)))
         i, j = origin
     return path[::-1], path_aux[::-1]
 
@@ -256,10 +252,12 @@ def _get_local_path(pattern, pattern_idx, i, j):
     origin = (0, 0)
     max_pattern_len = pattern.shape[1]
     # # note: starting point of pattern was already added
-    local_path = np.ones((max_pattern_len-1, 2), dtype=np.int64) * -1
+    local_path = np.ones((max_pattern_len - 1, 2), dtype=np.int64) * -1
     for s in range(max_pattern_len):
         dx, dy, weight = pattern[pattern_idx, s, :]
-        if dx == 0 and dy == 0: # condition that all step pattern end at the point (0,0)
+        if (
+            dx == 0 and dy == 0
+        ):  # condition that all step pattern end at the point (0,0)
             break
         ii, jj = int(i + dx), int(j + dy)
         if weight == -1:
@@ -267,185 +265,6 @@ def _get_local_path(pattern, pattern_idx, i, j):
         local_path[s, :] = (ii, jj)
     local_path = local_path[:s]
     return local_path[::-1], origin
-
-
-class DtwResult:
-    """Result of DTW.
-
-    Attributes
-    ----------
-    path : 2d array
-        Alignment path.
-        * First column: query path array
-        * Second column: reference path array
-    distance : float
-        Alignment distance.
-    normalized_distance : float
-        Normalized alignment distance.
-    """
-
-    def __init__(self, x, y, cost, path, window, pattern, dist, normalized_dist):
-        self.x = x
-        self.y = y
-        self.cost = cost
-
-        if path is None:
-            self.compute_path = False
-        else:
-            self.compute_path = True
-            self.path = path
-
-        self.window = window
-        self.pattern = pattern
-        self.dist = dist
-        self.normalized_dist = normalized_dist
-
-    def get_warping_path(self, target="query"):
-        """Get warping path.
-
-        Parameters
-        ----------
-        target : string, "query" or "reference"
-            Specify the target to be warped.
-
-        Returns
-        -------
-        warping_index : 1D array
-            Warping index.
-
-        """
-        if target not in ("query", "reference"):
-            raise ValueError("target argument must be 'query' or 'reference'")
-        if target == "reference":
-            xp = self.path[:, 0]  # query path
-            yp = self.path[:, 1]  # reference path
-        else:
-            yp = self.path[:, 0]  # query path
-            xp = self.path[:, 1]  # reference path
-        interp_func = interp1d(xp, yp, kind="linear")
-        # get warping index as float values and then convert to int
-        # note: Ideally, the warped value should be calculated as mean.
-        #       (in this implementation, just use value corresponds to rounded-up index)
-        warping_index = interp_func(np.arange(xp.min(), xp.max() + 1)).astype(np.int64)
-        # the most left side gives nan, so substitute first index of path
-        warping_index[0] = yp.min()
-
-        return warping_index
-
-    def plot_cost_matrix(self, labels = True, ax=None, pax=None):
-        if ax is None:
-            fig, ax = plt.subplots(1)
-        im = ax.imshow(self.cost.T, origin='lower', cmap='inferno', vmin=0, aspect='auto')
-        if pax is None:
-            from mpl_toolkits.axes_grid1 import make_axes_locatable
-            divider = make_axes_locatable(ax)
-            pax = divider.append_axes("bottom", size="5%", pad=0.05)
-            plt.colorbar(im, cax=pax, orientation="horizontal")
-        else:
-            plt.colorbar(im, cax=pax)
-        if self.compute_path:
-            ax.plot(self.path[:, 0], self.path[:, 1], color="white", alpha=0.9)
-            # ax.plot(self.path[:, 0], self.path[:, 1], c="red", marker='o', markersize=1)
-        if labels:
-            ax.set_xlabel("Query Index")
-            ax.set_ylabel("Reference Index")
-            ax.set_title("Cost matrix")
-        else:
-            ax.set_axis_off()
-            pass
-
-        return ax
-
-    def plot_path(self, ax):
-        if not self.compute_path:
-            raise Exception("Alignment path not calculated.")
-        if ax is None:
-            fig, ax = plt.subplots(1)
-        ax.plot(self.path[:, 0], self.path[:, 1])
-        ax.set_title("Alignment Path")
-        ax.set_xlabel("Query Index")
-        ax.set_ylabel("Reference Index")
-        return ax
-
-    def plot_pattern(self, labels=True, ax=None):
-        # if ax is None:
-        #     fig, ax = plt.subplots(1)
-        return self.pattern.plot(labels, ax)
-
-    def plot_ts_subplot(self, data, title):
-        d = data.shape[1]
-        fig, ax = plt.subplots(nrows=d, ncols=1, sharex=True, constrained_layout=True)
-        for i in range(d):
-            ax[i].plot(data[:,i])
-            ax[i].set_ylabel(f"dim.{i}")
-        plt.xlabel("Time Index")
-        fig.suptitle(title)
-
-
-    def plot_ts_overlay(self, data, title, ax=None):
-        if ax is None:
-            fig, ax = plt.subplots(1, constrained_layout=True)
-        for i in range(data.shape[1]):
-            ax.plot(data[:,i])
-        ax.set_xlabel("Time Index")
-        ax.set_title(title)
-
-    def plot_ts_query(self, ax=None):
-        if ax is None:
-            fig, ax = plt.subplots(1, constrained_layout=True)
-        n, d = self.x.shape
-        t = np.arange(n)
-        for i in range(d):
-            ax.plot(t, self.x[:,i], color="black", alpha=0.9)
-        ax.set_xlabel("Query X")
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-        ax.tick_params(axis="x", which="both", bottom=False, labelbottom=False)
-
-
-    def plot_ts_reference(self, ax=None):
-        if ax is None:
-            fig, ax = plt.subplots(1, constrained_layout=True)
-        n, d = self.y.shape
-        t = np.arange(n)
-        for i in range(d):
-            ax.plot(self.y[:,i], t, color="black", alpha=0.9)
-        ax.invert_xaxis()
-        ax.set_ylabel("Reference Y")
-        ax.yaxis.tick_right()
-        ax.spines['left'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-        ax.tick_params(axis="y", which="both", right=False, labelright=False)
-
-    def plot_summary(self):
-        n = x.shape[0]
-        m = y.shape[0]
-        h = min(n, m)/2.5
-        fig = plt.figure(constrained_layout=True, figsize=(10,10))
-        spec = fig.add_gridspec(ncols=3, nrows=2,
-                                 width_ratios=[h, n, n*0.05],
-                                 height_ratios=[m, h])
-        title = f"DTW: {self.dist:.2f} "
-        if self.normalized_dist is not None:
-            title += f"Normalized: {self.normalized_dist:.2f}"
-        fig.suptitle(title)
-
-        ax = fig.add_subplot(spec[0, 1])
-        pax = fig.add_subplot(spec[0, 2])
-        self.plot_cost_matrix(False, ax, pax)
-
-        ax = fig.add_subplot(spec[1, 0])
-        self.plot_pattern(False, ax)
-
-        ax = fig.add_subplot(spec[1, 1])
-        self.plot_ts_query(ax)
-
-        ax = fig.add_subplot(spec[0, 0])
-        self.plot_ts_reference(ax)
-
-
-
-
 
 
 # TO-DO
