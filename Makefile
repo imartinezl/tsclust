@@ -97,7 +97,7 @@ tox: venv ## installs tox
 clean-tox:
 	rm -fr .tox/
 test-tox: tox ## run tests on every Python version with tox
-	$(VENV_BIN)/tox
+	$(VENV_BIN)/tox --skip-missing-interpreters
 
 test-native: ## run tests quickly with the default Python
 	$(VENV_BIN)/python setup.py test
