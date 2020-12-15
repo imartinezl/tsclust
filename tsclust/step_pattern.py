@@ -227,8 +227,9 @@ class BasePattern:
         normalize = f"\n\nnormalization: {self.normalize}\n"
         return title + table + normalize
 
-    def plot_matplotlib(self):
-        fig, ax = plt.subplots(figsize=(6, 6))
+    def plot_matplotlib(self, labels=True, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(1, constrained_layout=True)
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
             if pattern_len == 1:
@@ -261,17 +262,18 @@ class BasePattern:
         y_ticks = np.unique(self.array[:, :, 1])
         ax.set_xlim([np.min(x_ticks) - 0.5, 0.5])
         ax.set_ylim([np.min(y_ticks) - 0.5, 0.5])
-        ax.set_title(self.label + " pattern")
-        ax.set_xlabel("Query index")
-        ax.set_ylabel("Reference index")
         ax.set_xticks(x_ticks)
         ax.set_yticks(y_ticks)
-        plt.show()
-        return ax
+        if labels:
+            ax.set_title(self.label + " pattern")
+            ax.set_xlabel("Query index")
+            ax.set_ylabel("Reference index")
 
-    def plot_graph(self):
+
+    def plot_graph(self, labels=True, ax=None):
         """Show step pattern."""
-        fig, ax = plt.subplots(figsize=(6, 6))
+        if ax is None:
+            fig, ax = plt.subplots(1, constrained_layout=True)
         if not hasattr(self, "_graph"):
             self._gen_graph()
         nx.draw_networkx_nodes(
@@ -292,15 +294,14 @@ class BasePattern:
         plt.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
         ax.set_xticks(x_ticks)
         ax.set_yticks(y_ticks)
-        ax.set_title(self.label + " pattern")
-        ax.set_xlabel("Query index")
-        ax.set_ylabel("Reference index")
-        plt.show()
+        if labels:
+            ax.set_title(self.label + " pattern")
+            ax.set_xlabel("Query index")
+            ax.set_ylabel("Reference index")
 
-        return ax
 
-    def plot(self):
-        return self.plot_graph()
+    def plot(self, labels=True, ax=None):
+        self.plot_graph(labels, ax)
 
 
 class Symmetric1(BasePattern):
