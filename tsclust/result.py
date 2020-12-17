@@ -22,44 +22,14 @@ class DtwResult:
         self.dist = dist
         self.normalized_dist = normalized_dist
 
-    def get_warping_path(self, target="query"):
-        """Get warping path.
-
-        Parameters
-        ----------
-        target : string, "query" or "reference"
-            Specify the target to be warped.
-
-        Returns
-        -------
-        warping_index : 1D array
-            Warping index.
-
-        """
-        if target not in ("query", "reference"):
-            raise ValueError("target argument must be 'query' or 'reference'")
-        if target == "reference":
-            xp = self.path[:, 0]  # query path
-            yp = self.path[:, 1]  # reference path
-        else:
-            yp = self.path[:, 0]  # query path
-            xp = self.path[:, 1]  # reference path
-        interp_func = interp1d(xp, yp, kind="linear")
-        # get warping index as float values and then convert to int
-        # note: Ideally, the warped value should be calculated as mean.
-        #       (in this implementation, just use value corresponds to rounded-up index)
-        warping_index = interp_func(np.arange(xp.min(), xp.max() + 1)).astype(np.int64)
-        # the most left side gives nan, so substitute first index of path
-        warping_index[0] = yp.min()
-
-        return warping_index
-
     def plot_cost_matrix(self, labels=True, ax=None, pax=None):
         if ax is None:
             fig, ax = plt.subplots(1)
         im = ax.imshow(
             self.cost.T, origin="lower", cmap="inferno", vmin=0, aspect="auto"
         )
+        # co = ax.contour(self.cost.T, colors="grey", linewidths=1)
+        # ax.clabel(co)
         if pax is None:
             from mpl_toolkits.axes_grid1 import make_axes_locatable
 
