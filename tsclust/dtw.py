@@ -8,11 +8,11 @@ import matplotlib.pyplot as plt
 # from scipy.spatial.distance import cdist
 import timeit
 
-from metrics import get_metric
-from step_pattern import get_pattern
-from window import get_window
-from utils import validate_time_series
-from result import DtwResult
+from tsclust.metrics import get_metric
+from tsclust.step_pattern import get_pattern
+from tsclust.window import get_window
+from tsclust.utils import validate_time_series
+from tsclust.result import DtwResult
 
 
 # Benchmark with:
@@ -45,11 +45,84 @@ def dtw(
     x,
     y,
     local_dist="euclidean",
-    step_pattern="symmetric2",
-    window_name="none",
-    window_size=20,
+    step_pattern="asymmetricP05",
+    window_name="sakoechiba",
+    window_size=19,
     compute_path=True,
 ):
+    """
+    Compute Dynamic Time Warping and find optimal alignment between two time series.
+
+    **Details**
+
+    The function performs Dynamic Time Warp (DTW) and computes the optimal
+    alignment between two time series ``x`` and ``y``, given as numeric
+    vectors. The “optimal” alignment minimizes the sum of distances between
+    aligned elements. Lengths of ``x`` and ``y`` may differ.
+
+    Several common variants of the DTW recursion are supported via the
+    ``step_pattern`` argument, which defaults to ``symmetric2``. Step
+    patterns are commonly used to *locally* constrain the slope of the
+    alignment function.
+
+    Windowing enforces a *global* constraint on the envelope of the warping
+    path. It is selected by passing a string or function to the
+    ``window_type`` argument. Commonly used windows are:
+
+    -  ``"none"`` No windowing (default)
+    -  ``"sakoechiba"`` A band around main diagonal
+    -  ``"slantedband"`` A band around slanted diagonal
+    -  ``"itakura"`` So-called Itakura parallelogram
+
+    Some windowing functions may require parameters, such as the
+    ``window_size`` argument.
+
+    If the warping function is not required, computation can be sped up
+    enabling the ``compute_path=False`` switch, which skips the backtracking
+    step. The output object will then lack the ``path`` and
+    ``path_origin`` fields.
+
+    Parameters
+    ----------
+    x : 1D or 2D array (sample * feature)
+        Query time series.
+    y : 1D or 2D array (sample * feature)
+        Reference time series.
+    local_dist : string
+        pointwise (local) distance function to use.
+        Define how to calculate pair-wise distance between x and y.
+    step_pattern :
+        a stepPattern object describing the local warping steps
+        allowed with their cost
+    window_type :
+        windowing function. Character: "none", "itakura",
+        "sakoechiba", "slantedband".
+    compute_path :
+        Whether or not to obtain warping path. If False is selected,
+        no backtrack will be computed and only alignment distance will be calculated (faster).
+
+
+    Returns
+    -------
+    An object of class ``DtwResult``. See docs for the corresponding properties.
+
+
+    Notes
+    -----
+
+    Cost matrices (both input and output) have query elements arranged
+    row-wise (first index), and reference elements column-wise (second
+    index). They print according to the usual convention, with indexes
+    increasing down- and rightwards. Many DTW papers and tutorials show
+    matrices according to plot-like conventions, i_e. reference index
+    growing upwards. This may be confusing.
+
+    A fast compiled version of the function is normally used. Should it be
+    unavailable, the interpreted equivalent will be used as a fall-back with
+    a warning.
+
+
+    """
 
     x = validate_time_series(x)
     y = validate_time_series(y)
@@ -67,11 +140,11 @@ def dtw(
     print(dist, normalized_dist)
 
     path = None
-    path_aux = None
+    path_origin = None
     if compute_path:
-        path, path_aux = _backtrack(direction, pattern.array)
+        path, path_origin = _backtrack(direction, pattern.array)
 
-    print(path, path_aux)
+    print(path, path_origin)
     dtw_result = DtwResult(x, y, cost, path, window, pattern, dist, normalized_dist)
     # dtw_result.plot_cost_matrix()
     # dtw_result.plot_pattern()
@@ -82,7 +155,7 @@ def dtw(
     dtw_result.plot_summary()
     dtw_result.plot_warp()
 
-    plt.show()
+    # plt.show()
     return dtw_result
 
 
@@ -236,16 +309,26 @@ def _backtrack(direction, pattern):
     i -= 1
     j -= 1
     path = np.array(((i, j),), dtype=np.int64)
-    path_aux = np.array(((i, j),), dtype=np.int64)
+    path_origin = np.array(((i, j),), dtype=np.int64)
+
+    num_pattern = pattern.shape[0]
+    pattern_paths = [_get_local_path2(pattern, pattern_idx) for pattern_idx in range(num_pattern)]
+
     while i + j > 0:
         pattern_idx = int(direction[i, j])
-        local_path, origin = _get_local_path(pattern, pattern_idx, i, j)
+        local_path = pattern_paths[pattern_idx] + np.array((i,j), dtype=np.int64)
+        i, j = local_path[-1]
         path = np.vstack((path, local_path))
-        path_aux = np.vstack((path_aux, np.array((origin,), dtype=np.int64)))
-        i, j = origin
-    return path[::-1], path_aux[::-1]
+        path_origin = np.vstack((path_origin, np.array(((i,j),), dtype=np.int64)))
+        # local_path, origin = _get_local_path(pattern, pattern_idx, i, j)
+        # path_origin = np.vstack((path_origin, np.array((origin,), dtype=np.int64)))
+        # i, j = origin
+        # i, j = origin
+    return path[::-1], path_origin[::-1]
 
 
+# TO-DO: move this function to the step pattern? NO! BUT CALL ONLY ONCE
+# the output should be the same for a given step pattern. only the i,j change
 @nb.jit(**jitkw)
 def _get_local_path(pattern, pattern_idx, i, j):
     """Helper function to get local path."""
@@ -255,16 +338,32 @@ def _get_local_path(pattern, pattern_idx, i, j):
     local_path = np.ones((max_pattern_len - 1, 2), dtype=np.int64) * -1
     for s in range(max_pattern_len):
         dx, dy, weight = pattern[pattern_idx, s, :]
-        if (
-            dx == 0 and dy == 0
-        ):  # condition that all step pattern end at the point (0,0)
-            break
+        if dx == 0 and dy == 0:
+            break  # condition that all step pattern end at the point (0,0)
         ii, jj = int(i + dx), int(j + dy)
         if weight == -1:
             origin = (ii, jj)
         local_path[s, :] = (ii, jj)
     local_path = local_path[:s]
     return local_path[::-1], origin
+
+
+@nb.jit(**jitkw)
+def _get_local_path2(pattern, pattern_idx):
+    """Helper function to get local path."""
+    max_pattern_len = pattern.shape[1]
+    # # note: starting point of pattern was already added
+    local_path = np.ones((max_pattern_len - 1, 2), dtype=np.int64) * -1
+    for s in range(max_pattern_len):
+        dx, dy, weight = pattern[pattern_idx, s, :]
+        if dx == 0 and dy == 0:
+            break  # condition that all step pattern end at the point (0,0)
+        ii, jj = int(dx), int(dy)
+        # if weight == -1:
+        #     origin = (ii, jj)
+        local_path[s, :] = (ii, jj)
+    local_path = local_path[:s]
+    return local_path[::-1]
 
 
 # TO-DO
