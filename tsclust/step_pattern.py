@@ -63,7 +63,164 @@ def _num_to_str(num):
         return str(num)
 
 
-class BasePattern:
+class StepPattern:
+    """Step patterns for DTW
+
+    A ``StepPattern`` object lists the transitions allowed while searching
+    for the minimum-distance path. DTW variants are implemented by passing
+    one of the strings described in this page to the ``step_pattern``
+    argument of the [dtw()] call.
+
+    **Details**
+
+    A step pattern characterizes the matching model and slope constraint
+    specific of a DTW variant. They also known as local- or
+    slope-constraints, transition types, production or recursion rules
+    (GiorginoJSS).
+
+    **Pre-defined step patterns**
+
+    ::
+
+          ## Well-known step patterns
+          symmetric1
+          symmetric2
+          asymmetric
+
+          ## Step patterns classified according to Rabiner-Juang (Rabiner1993)
+          rabinerJuangStepPattern(type,slope_weighting="d",smoothed=False)
+
+          ## Slope-constrained step patterns from Sakoe-Chiba (Sakoe1978)
+          symmetricP0;  asymmetricP0
+          symmetricP05; asymmetricP05
+          symmetricP1;  asymmetricP1
+          symmetricP2;  asymmetricP2
+
+          ## Step patterns classified according to Rabiner-Myers (Myers1980)
+          typeIa;   typeIb;   typeIc;   typeId;
+          typeIas;  typeIbs;  typeIcs;  typeIds;  # smoothed
+          typeIIa;  typeIIb;  typeIIc;  typeIId;
+          typeIIIc; typeIVc;
+
+          ## Miscellaneous
+          mori2006;
+          rigid;
+
+    A variety of classification schemes have been proposed for step
+    patterns, including Sakoe-Chiba (Sakoe1978); Rabiner-Juang
+    (Rabiner1993); and Rabiner-Myers (Myers1980). The ``dtw`` package
+    implements all of the transition types found in those papers, with the
+    exception of Itakura’s and Velichko-Zagoruyko’s steps, which require
+    subtly different algorithms (this may be rectified in the future).
+    Itakura recursion is almost, but not quite, equivalent to ``typeIIIc``.
+
+    For convenience, we shall review pre-defined step patterns grouped by
+    classification. Note that the same pattern may be listed under different
+    names. Refer to paper (GiorginoJSS) for full details.
+
+    **1. Well-known step patterns**
+
+    Common DTW implementations are based on one of the following transition
+    types.
+
+    ``symmetric2`` is the normalizable, symmetric, with no local slope
+    constraints. Since one diagonal step costs as much as the two equivalent
+    steps along the sides, it can be normalized dividing by ``N+M``
+    (query+reference lengths). It is widely used and the default.
+
+    ``asymmetric`` is asymmetric, slope constrained between 0 and 2. Matches
+    each element of the query time series exactly once, so the warping path
+    ``index2~index1`` is guaranteed to be single-valued. Normalized by ``N``
+    (length of query).
+
+    ``symmetric1`` (or White-Neely) is quasi-symmetric, no local constraint,
+    non-normalizable. It is biased in favor of oblique steps.
+
+    **2. The Rabiner-Juang set**
+
+    A comprehensive table of step patterns is proposed in Rabiner-Juang’s
+    book (Rabiner1993), tab. 4.5. All of them can be constructed through the
+    ``rabinerJuangStepPattern(type,slope_weighting,smoothed)`` function.
+
+    The classification foresees seven families, labelled with Roman numerals
+    I-VII; here, they are selected through the integer argument ``type``.
+    Each family has four slope weighting sub-types, named in sec. 4.7.2.5 as
+    “Type (a)” to “Type (d)”; they are selected passing a character argument
+    ``slope_weighting``, as in the table below. Furthermore, each subtype
+    can be either plain or smoothed (figure 4.44); smoothing is enabled
+    setting the logical argument ``smoothed``. (Not all combinations of
+    arguments make sense.)
+
+    ::
+
+         Subtype | Rule       | Norm | Unbiased
+         --------|------------|------|---------
+            a    | min step   |  --  |   NO
+            b    | max step   |  --  |   NO
+            c    | Di step    |   N  |  YES
+            d    | Di+Dj step | N+M  |  YES
+
+    **3. The Sakoe-Chiba set**
+
+    Sakoe-Chiba (Sakoe1978) discuss a family of slope-constrained patterns;
+    they are implemented as shown in page 47, table I. Here, they are called
+    ``symmetricP<x>`` and ``asymmetricP<x>``, where ``<x>`` corresponds to
+    Sakoe’s integer slope parameter *P*. Values available are accordingly:
+    ``0`` (no constraint), ``1``, ``05`` (one half) and ``2``. See
+    (Sakoe1978) for details.
+
+    **4. The Rabiner-Myers set**
+
+    The ``type<XX><y>`` step patterns follow the older Rabiner-Myers’
+    classification proposed in (Myers1980) and (MRR1980). Note that this is
+    a subset of the Rabiner-Juang set (Rabiner1993), and the latter should
+    be preferred in order to avoid confusion. ``<XX>`` is a Roman numeral
+    specifying the shape of the transitions; ``<y>`` is a letter in the
+    range ``a-d`` specifying the weighting used per step, as above;
+    ``typeIIx`` patterns also have a version ending in ``s``, meaning the
+    smoothing is used (which does not permit skipping points). The
+    ``typeId, typeIId`` and ``typeIIds`` are unbiased and symmetric.
+
+    **5. Others**
+
+    The ``rigid`` pattern enforces a fixed unitary slope. It only makes
+    sense in combination with ``open_begin=True``, ``open_end=True`` to find
+    gapless subsequences. It may be seen as the ``P->inf`` limiting case in
+    Sakoe’s classification.
+
+    ``mori2006`` is Mori’s asymmetric step-constrained pattern (Mori2006).
+    It is normalized by the matched reference length.
+
+    [mvmStepPattern()] implements Latecki’s Minimum Variance Matching
+    algorithm, and it is described in its own page.
+
+    **Methods**
+
+    ``print_stepPattern`` prints an user-readable description of the
+    recurrence equation defined by the given pattern.
+
+    ``plot_stepPattern`` graphically displays the step patterns productions
+    which can lead to element (0,0). Weights are shown along the step
+    leading to the corresponding element.
+
+    ``t_stepPattern`` transposes the productions and normalization hint so
+    that roles of query and reference become reversed.
+
+    Parameters
+    ----------
+    x :
+        a step pattern object
+    type :
+        path specification, integer 1..7 (see (Rabiner1993), table 4.5)
+    slope_weighting :
+        slope weighting rule: character `"a"` to `"d"` (see (Rabiner1993), sec. 4.7.2.5)
+    smoothed :
+        logical, whether to use smoothing (see (Rabiner1993), fig. 4.44)
+    ... :
+        additional arguments to [print()].
+
+    """
+
     label = ""
     pattern = []
     normalize = []
@@ -303,7 +460,7 @@ class BasePattern:
         self.plot_graph(labels, ax)
 
 
-class Symmetric1(BasePattern):
+class Symmetric1(StepPattern):
     label = "symmetric1"
     pattern = [
         dict(indices=[(-1, 0), (0, 0)], weights=[1]),
@@ -316,7 +473,7 @@ class Symmetric1(BasePattern):
         super().__init__()
 
 
-class Symmetric2(BasePattern):
+class Symmetric2(StepPattern):
     label = "symmetric2"
     pattern = [
         dict(indices=[(-1, 0), (0, 0)], weights=[1]),
@@ -335,7 +492,7 @@ class SymmetricP0(Symmetric2):
     label = "symmetricP05"
 
 
-class SymmetricP05(BasePattern):
+class SymmetricP05(StepPattern):
     label = "symmetricP05"
     pattern = [
         dict(indices=[(-1, -3), (0, -2), (0, -1), (0, 0)], weights=[2, 1, 1]),
@@ -350,7 +507,7 @@ class SymmetricP05(BasePattern):
         super().__init__()
 
 
-class SymmetricP1(BasePattern):
+class SymmetricP1(StepPattern):
     label = "symmetricP1"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[2, 1]),
@@ -363,7 +520,7 @@ class SymmetricP1(BasePattern):
         super().__init__()
 
 
-class SymmetricP2(BasePattern):
+class SymmetricP2(StepPattern):
     label = "symmetricP2"
     pattern = [
         dict(indices=[(-3, -2), (-2, -1), (-1, 0), (0, 0)], weights=[2, 2, 1]),
@@ -376,7 +533,7 @@ class SymmetricP2(BasePattern):
         super().__init__()
 
 
-class Asymmetric(BasePattern):
+class Asymmetric(StepPattern):
     label = "asymmetric"
     pattern = [
         dict(indices=[(-1, 0), (0, 0)], weights=[1]),
@@ -389,7 +546,7 @@ class Asymmetric(BasePattern):
         super().__init__()
 
 
-class AsymmetricP0(BasePattern):
+class AsymmetricP0(StepPattern):
     label = "asymmetricP0"
     pattern = [
         dict(indices=[(0, -1), (0, 0)], weights=[0]),
@@ -402,7 +559,7 @@ class AsymmetricP0(BasePattern):
         super().__init__()
 
 
-class AsymmetricP05(BasePattern):
+class AsymmetricP05(StepPattern):
     label = "asymmetricP05"
     pattern = [
         dict(
@@ -420,7 +577,7 @@ class AsymmetricP05(BasePattern):
         super().__init__()
 
 
-class AsymmetricP1(BasePattern):
+class AsymmetricP1(StepPattern):
     label = "asymmetricP1"
     pattern = [
         dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[0.5, 0.5]),
@@ -433,7 +590,7 @@ class AsymmetricP1(BasePattern):
         super().__init__()
 
 
-class AsymmetricP2(BasePattern):
+class AsymmetricP2(StepPattern):
     label = "asymmetricP2"
     pattern = [
         dict(
@@ -449,7 +606,7 @@ class AsymmetricP2(BasePattern):
         super().__init__()
 
 
-class TypeIa(BasePattern):
+class TypeIa(StepPattern):
     label = "typeIa"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 0]),
@@ -462,7 +619,7 @@ class TypeIa(BasePattern):
         super().__init__()
 
 
-class TypeIb(BasePattern):
+class TypeIb(StepPattern):
     label = "typeIb"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
@@ -475,7 +632,7 @@ class TypeIb(BasePattern):
         super().__init__()
 
 
-class TypeIc(BasePattern):
+class TypeIc(StepPattern):
     label = "typeIc"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
@@ -488,7 +645,7 @@ class TypeIc(BasePattern):
         super().__init__()
 
 
-class TypeId(BasePattern):
+class TypeId(StepPattern):
     label = "typeId"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[2, 1]),
@@ -501,7 +658,7 @@ class TypeId(BasePattern):
         super().__init__()
 
 
-class TypeIas(BasePattern):
+class TypeIas(StepPattern):
     label = "typeIas"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[0.5, 0.5]),
@@ -514,7 +671,7 @@ class TypeIas(BasePattern):
         super().__init__()
 
 
-class TypeIbs(BasePattern):
+class TypeIbs(StepPattern):
     label = "typeIbs"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
@@ -527,7 +684,7 @@ class TypeIbs(BasePattern):
         super().__init__()
 
 
-class TypeIcs(BasePattern):
+class TypeIcs(StepPattern):
     label = "typeIcs"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1, 1]),
@@ -540,7 +697,7 @@ class TypeIcs(BasePattern):
         super().__init__()
 
 
-class TypeIds(BasePattern):
+class TypeIds(StepPattern):
     label = "typeIds"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[1.5, 1.5]),
@@ -553,7 +710,7 @@ class TypeIds(BasePattern):
         super().__init__()
 
 
-class TypeIIa(BasePattern):
+class TypeIIa(StepPattern):
     label = "typeIIa"
     pattern = [
         dict(indices=[(-1, -1), (0, 0)], weights=[1]),
@@ -566,7 +723,7 @@ class TypeIIa(BasePattern):
         super().__init__()
 
 
-class TypeIIb(BasePattern):
+class TypeIIb(StepPattern):
     label = "typeIIb"
     pattern = [
         dict(indices=[(-1, -1), (0, 0)], weights=[1]),
@@ -579,7 +736,7 @@ class TypeIIb(BasePattern):
         super().__init__()
 
 
-class TypeIIc(BasePattern):
+class TypeIIc(StepPattern):
     label = "typeIIc"
     pattern = [
         dict(indices=[(-1, -1), (0, 0)], weights=[1]),
@@ -592,7 +749,7 @@ class TypeIIc(BasePattern):
         super().__init__()
 
 
-class TypeIId(BasePattern):
+class TypeIId(StepPattern):
     label = "typeIId"
     pattern = [
         dict(indices=[(-1, -1), (0, 0)], weights=[2]),
@@ -605,7 +762,7 @@ class TypeIId(BasePattern):
         super().__init__()
 
 
-class TypeIIIc(BasePattern):
+class TypeIIIc(StepPattern):
     label = "typeIIIc"
     pattern = [
         dict(indices=[(-1, -2), (0, 0)], weights=[1]),
@@ -619,7 +776,7 @@ class TypeIIIc(BasePattern):
         super().__init__()
 
 
-class TypeIVc(BasePattern):
+class TypeIVc(StepPattern):
     label = "typeIVc"
     pattern = [
         dict(indices=[(-1, -1), (0, 0)], weights=[1]),
@@ -638,7 +795,7 @@ class TypeIVc(BasePattern):
         super().__init__()
 
 
-class Mori2006(BasePattern):
+class Mori2006(StepPattern):
     label = "mori2006"
     pattern = [
         dict(indices=[(-2, -1), (-1, 0), (0, 0)], weights=[2, 1]),
@@ -651,7 +808,7 @@ class Mori2006(BasePattern):
         super().__init__()
 
 
-class Unitary(BasePattern):
+class Unitary(StepPattern):
     label = "unitary"
     pattern = [
         dict(indices=[(-1, -1), (0, 0)], weights=[1]),
@@ -662,7 +819,7 @@ class Unitary(BasePattern):
         super().__init__()
 
 
-class UserStepPattern(BasePattern):
+class UserStepPattern(StepPattern):
     label = "user defined step pattern"
 
     def __init__(self, pattern, normalize):
