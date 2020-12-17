@@ -5,14 +5,14 @@ import numpy as np
 import numba as nb
 import matplotlib.pyplot as plt
 
-# from scipy.spatial.distance import cdist
+from scipy.spatial.distance import cdist
 import timeit
 
-from tsclust.metrics import get_metric
-from tsclust.step_pattern import get_pattern
-from tsclust.window import get_window
-from tsclust.utils import validate_time_series
-from tsclust.result import DtwResult
+from metrics import get_metric
+from step_pattern import get_pattern
+from window import get_window, precompute
+from utils import validate_time_series
+from result import DtwResult
 
 
 # Benchmark with:
@@ -35,19 +35,30 @@ jitkw = {
     "cache": False,
     "error_model": "numpy",
     "fastmath": True,
-    "debug": True,
+    "debug": False,
+    "parallel": False
 }
 
-# nb.config.THREADING_LAYER = 'omp'
+jitkwp = {
+    "nopython": True,
+    "nogil": True,
+    "cache": False,
+    "error_model": "numpy",
+    "fastmath": True,
+    "debug": False,
+    "parallel": True
+}
+
+nb.config.THREADING_LAYER = 'omp'
 
 
 def dtw(
     x,
     y,
     local_dist="euclidean",
-    step_pattern="asymmetricP05",
-    window_name="sakoechiba",
-    window_size=19,
+    step_pattern="symmetric1",
+    window_name="none",
+    window_size=None,
     compute_path=True,
 ):
     """
@@ -127,36 +138,80 @@ def dtw(
     x = validate_time_series(x)
     y = validate_time_series(y)
 
+    if step_pattern is "symmetric1":
+        pass
+
     dist = get_metric(local_dist)  # jit method
     pattern = get_pattern(step_pattern)
     window = get_window(window_name)  # jit method
 
-    cost, direction = _compute_cost(x, y, dist, pattern.array, window, window_size)
-
+    # cost, direction = _compute_cost_efficient(x, y, dist, pattern.array, window, window_size)
+    # local_cost = _compute_local_cost(x, y, dist)
+    local_cost = cdist(x, y, local_dist)
+    cost, direction = _compute_global_cost(local_cost, pattern.array, window, window_size)
+    # print(local_cost, cost, direction)
+    # cost, direction = _compute_cost_efficient(x, y, euclidean, pattern.array, window, window_size)
+    # return 1
     dist, normalized_dist = _get_distance(cost, pattern)
 
-    print(cost)
-    print(direction)
-    print(dist, normalized_dist)
+    # print(cost)
+    # print(direction)
+    # print(dist, normalized_dist)
 
     path = None
     path_origin = None
     if compute_path:
         path, path_origin = _backtrack(direction, pattern.array)
 
-    print(path, path_origin)
+    # print(path, path_origin)
     dtw_result = DtwResult(x, y, cost, path, window, pattern, dist, normalized_dist)
-    # dtw_result.plot_cost_matrix()
+    dtw_result.plot_cost_matrix()
     # dtw_result.plot_pattern()
     # dtw_result.plot_path()
     # # dtw_result.plot_ts_subplot(x, "Query")
     # dtw_result.plot_ts_overlay(x, "Query")
     # dtw_result.plot_ts_overlay(y, "Reference")
-    dtw_result.plot_summary()
-    dtw_result.plot_warp()
+    # dtw_result.plot_summary()
+    # dtw_result.plot_warp()
 
-    # plt.show()
+    plt.show()
     return dtw_result
+
+
+@nb.jit(**jitkw)
+def _compute_cost_efficient(x, y, dist, pattern, window, window_size):
+    n = x.shape[0]
+    m = y.shape[0]
+    cost = np.ones((n, m), dtype=np.float64) * np.inf
+    direction = np.ones((n, m), dtype=np.float64) * (-1)
+
+    num_pattern = pattern.shape[0]
+    max_pattern_len = pattern.shape[1]
+
+    for i in range(n):
+        for j in range(m):
+            if window(i, j, n, m, window_size):
+                if i == 0 and j == 0:
+                    cost[i, j] = dist(x[i], y[j])
+                    continue
+                pattern_cost_min = -np.inf
+                for p in range(num_pattern):
+                    pattern_cost = 0
+                    for s in range(max_pattern_len):
+                        dx, dy, weight = pattern[p, s, :]
+                        ii, jj = int(i + dx), int(j + dy)
+                        if ii < 0 or jj < 0:
+                            pattern_cost += np.inf
+                            continue
+                        if weight == -1:
+                            pattern_cost += cost[ii, jj]
+                        else:
+                            pattern_cost += dist(x[ii], y[jj]) * weight
+                    if pattern_cost < pattern_cost_min:
+                        pattern_cost_min = pattern_cost
+                        cost[i, j] = pattern_cost_min
+                        direction[i,j] = p
+    return cost, direction
 
 
 @nb.jit(**jitkw)
@@ -245,26 +300,34 @@ def _compute_cost_open_end(local_cost, pattern, window, window_size):
     return cost
 
 
-@nb.jit(**jitkw)
+@nb.jit(**jitkwp)
 def _compute_local_cost(x, y, dist, weight=None):
     n = len(x)
     m = len(y)
     local_cost = np.empty((n, m), dtype=np.float64)
     for i in nb.prange(n):
         for j in nb.prange(m):
-            local_cost[i, j] = dist(x[i], y[j], weight)
+            local_cost[i, j] = euclidean(x[i], y[j])
+            # local_cost[i, j] = dist(x[i], y[j], weight)
     return local_cost
 
+@nb.jit(**jitkw)
+def euclidean(x, y):
+    s = 0.0
+    for k in nb.prange(len(x)):
+        tmp = x[k]-y[k]
+        s += tmp * tmp
+    s = np.sqrt(s)
+    return s
 
 @nb.jit(**jitkw)
 def _compute_global_cost(local_cost, pattern, window, window_size=None):
     n, m = local_cost.shape
     cost = np.ones((n, m), dtype=np.float64) * np.inf
+    direction = np.ones((n, m), dtype=np.float64) * (-1)
 
     num_pattern = pattern.shape[0]
     max_pattern_len = pattern.shape[1]
-    # pattern_cost = np.zeros(num_pattern, dtype=np.float64)
-    step_cost = np.zeros((num_pattern, max_pattern_len), dtype=np.float64)
 
     for i in range(n):
         for j in range(m):
@@ -272,22 +335,24 @@ def _compute_global_cost(local_cost, pattern, window, window_size=None):
                 if i == 0 and j == 0:
                     cost[i, j] = local_cost[i, j]
                     continue
+                pattern_cost_min = np.inf
                 for p in range(num_pattern):
+                    pattern_cost = 0
                     for s in range(max_pattern_len):
                         dx, dy, weight = pattern[p, s, :]
                         ii, jj = int(i + dx), int(j + dy)
                         if ii < 0 or jj < 0:
-                            step_cost[p, s] = np.inf
+                            pattern_cost += np.inf
                             continue
                         if weight == -1:
-                            step_cost[p, s] = cost[ii, jj]
+                            pattern_cost += cost[ii, jj]
                         else:
-                            step_cost[p, s] = local_cost[ii, jj] * weight
-                pattern_cost = step_cost.sum(axis=1)
-                min_cost = pattern_cost.min()
-                if min_cost != np.inf:
-                    cost[i, j] = min_cost
-    return cost
+                            pattern_cost += local_cost[ii, jj] * weight
+                    if pattern_cost < pattern_cost_min:
+                        pattern_cost_min = pattern_cost
+                        cost[i, j] = pattern_cost_min
+                        direction[i,j] = p
+    return cost, direction
 
 
 def _get_distance(cost, pattern):
@@ -391,11 +456,18 @@ y = np.array([0, 1, 1, 2, 3, 4, 3, 2, 1, 1])
 # y = np.sin(2 * np.pi * 3 * np.linspace(0, 1, 120))
 # y += np.random.rand(y.size)
 
-result = dtw(x, y)
+np.random.seed(1234)
+n = 1000
+x = np.sin(2 * np.pi * 3.1 * np.linspace(0, 1, n))
+x += np.random.rand(x.size)
+y = np.sin(2 * np.pi * 3 * np.linspace(0, 1, n))
+y += np.random.rand(y.size)
+
+# result = dtw(x, y)
 
 # print(nb.threading_layer())
 # print(nb.get_num_threads())
 
-# t1 = timeit.timeit(lambda: dtw(x, y), number=1)
-# t2 = timeit.timeit(lambda: dtw(x, y), number=1)
-# print(t1, t2, t1 / t2)
+t1 = timeit.timeit(lambda: dtw(x, y), number=1)
+t2 = timeit.timeit(lambda: dtw(x, y), number=1)
+print("DTW:", t1, t2, t1 / t2)
