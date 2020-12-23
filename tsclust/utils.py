@@ -28,7 +28,8 @@ jitkw = {
     "cache": True,
     "error_model": "numpy",
     "fastmath": True,
-    "debug": True,
+    "debug": False,
+    "parallel": False,
 }
 
 
@@ -160,3 +161,11 @@ def check_dims(X, X_fit_dims=None, extend=True, check_n_features_only=False):
                     " ({} and {} are passed shapes)".format(X_fit_dims, X.shape)
                 )
     return X
+
+
+def norm_01(x):
+    return (x - np.min(x)) / (np.max(x) - np.min(x))
+
+
+def norm_normal(x):
+    return (x - np.mean(x)) / np.std(x)
