@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import numpy as np
+from tsclust.dtw_classic import dtw
+from metrics import euclidean
+from window import no_window
 
-
+import matplotlib.pyplot as plt
 # BATCH
 
 # NonLinear Alignment and Averaging Filters (NLAAF): Tournament scheme
-def nlaaf(D, W):
+def nlaaf(D, W=None):
+    if W is None:
+        D = D.copy()
+        np.random.shuffle(D)
+        W = [1] * len(D)
     pairs = []
     weights = []
     for i in range(0, len(D) - 1, 2):
@@ -22,7 +30,7 @@ def nlaaf(D, W):
     for i in range(len(pairs)):
         x, y = pairs[i]
         w1, w2 = weights[i]
-        dist, cost, path = dtw(x, y)
+        cost, path, dist = dtw(x, y, euclidean, no_window)
         warp = [(x[p], y[q]) for p, q in path]
         mean = np.average(warp, axis=1, weights=[w1, w2])
         # std = np.std(warp, axis=1)
@@ -34,20 +42,59 @@ def nlaaf(D, W):
     else:
         return nlaaf(D, W)
 
-import numpy as np
-from tsclust.dtw import dtw
+
+# Cross-Word Reference Template (CWRT)
+
+# medoid estimation
+def get_medoid(X):
+    medoid = None
+    min_dist = np.inf
+    for x in X:
+        sum_dist = 0
+        for y in X:
+            cost, path, dist = dtw(x, y, euclidean, no_window)
+            sum_dist += dist
+        if sum_dist < min_dist:
+            min_dist = sum_dist
+            medoid = x
+    return medoid
+
+def cwrt(X):
+    medoid = get_medoid(X)
+    medoid_assignments = [[] for i in range(len(medoid))]
+    for x in X:
+        cost, path, dist = dtw(medoid, x, euclidean, no_window)
+        for p, q in path:
+            medoid_assignments[p].append(x[q])
+
+    mean = [np.mean(x) for x in medoid_assignments]
+    std = [np.std(x) for x in medoid_assignments]
+    return medoid, mean, std
+
+
+
+
+
+
 from tsclust.datasets import UCR_UEA_datasets
 
-X_train, y_train, X_test, y_test = UCR_UEA_datasets().load_dataset('Trace')
+X_train, y_train, X_test, y_test = UCR_UEA_datasets().load_dataset("Trace")
 X = np.vstack([X_train, X_test])
+y = np.hstack([y_train, y_test])
+X_subset = X[y == '3.0']
 
-D = X.copy()
-np.random.shuffle(D)
-W = [1] * len(D)
-mean = nlaaf(D, W)
-plt.figure()
-for x in X:
-    plt.plot(x, c="blue", alpha=0.1)
-plt.plot(mean, c="red")
+mean = nlaaf(X_subset)
+
+fig, ax = plt.subplots(2, 1)
+for x in X_subset:
+    ax[0].plot(x, c="blue", alpha=0.1)
+ax[1].plot(mean, c="red")
+
+medoid, mean, std = cwrt(X_subset)
+
+
+plt.show()
+
+
 
 # STREAMING
