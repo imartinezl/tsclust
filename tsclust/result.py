@@ -51,7 +51,7 @@ class DtwResult:
 
         return ax
 
-    def plot_path(self, ax):
+    def plot_path(self, ax=None):
         if not self.compute_path:
             raise Exception("Alignment path not calculated.")
         if ax is None:

@@ -32,7 +32,7 @@ except ImportError:
 
 from .utils import _load_arff_uea, _load_txt_uea
 
-print(os.path.abspath("."))
+# print(os.path.abspath("."))
 
 
 def extract_from_zip_url(url, target_dir=None, verbose=False):
@@ -40,7 +40,7 @@ def extract_from_zip_url(url, target_dir=None, verbose=False):
 
     Parameters
     ----------
-    url : string
+    url : str
         URL from which to download.
     target_dir : str or None (default: None)
         Directory to be used to extract unzipped downloaded files.
