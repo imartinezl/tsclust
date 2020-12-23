@@ -11,17 +11,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
-# import numba as nb
 # import tabulate
+import numba as nb
 
-# jitkw = {
-#     "nopython": True,
-#     "nogil": True,
-#     "cache": False,
-#     "error_model": "numpy",
-#     "fastmath": True,
-#     "debug": True,
-# }
+jitkw = {
+    "nopython": True,
+    "nogil": True,
+    "cache": False,
+    "error_model": "numpy",
+    "fastmath": True,
+    "debug": False,
+    "parallel": False,
+}
 
 all = {
     "symmetric1",
@@ -233,7 +234,7 @@ class StepPattern:
         self._get_array()
 
     def _get_array(self):
-        array = np.zeros([self.num_pattern, self.max_pattern_len, 3], dtype="float")
+        array = np.zeros([self.num_pattern, self.max_pattern_len, 3], dtype=np.float64)
         for i in range(self.num_pattern):
             pattern_len = len(self.pattern[i]["indices"])
             weight_len = len(self.pattern[i]["weights"])
@@ -923,5 +924,73 @@ def get_pattern(pattern_str):
         return Mori2006()
     elif pattern_str == "unitary":
         return Unitary()
+    else:
+        raise NotImplementedError("given step pattern not supported")
+
+
+# generate arrays for all patterns
+for sp in all:
+    name = sp[0].capitalize() + sp[1:]
+    pattern = locals()[name]()
+    locals()[sp + '_array'] = pattern.array
+    locals()[sp + '_normalize'] = pattern.normalize
+
+
+@nb.jit(**jitkw)
+def get_pattern_data(pattern_str):
+    if pattern_str == "symmetric1":
+        return symmetric1_array, symmetric1_normalize
+    elif pattern_str == "symmetric2":
+        return symmetric2_array, symmetric2_normalize
+    elif pattern_str == "symmetricP05":
+        return symmetricP05_array, symmetricP05_normalize
+    elif pattern_str == "symmetricP0":
+        return symmetricP0_array, symmetricP0_normalize
+    elif pattern_str == "symmetricP1":
+        return symmetricP1_array, symmetricP1_normalize
+    elif pattern_str == "symmetricP2":
+        return symmetricP2_array, symmetricP2_normalize
+    elif pattern_str == "asymmetric":
+        return asymmetric_array, asymmetric_normalize
+    elif pattern_str == "asymmetricP0":
+        return asymmetricP0_array, asymmetricP0_normalize
+    elif pattern_str == "asymmetricP05":
+        return asymmetricP05_array, asymmetricP05_normalize
+    elif pattern_str == "asymmetricP1":
+        return asymmetricP1_array, asymmetricP1_normalize
+    elif pattern_str == "asymmetricP2":
+        return asymmetricP2_array, asymmetricP2_normalize
+    elif pattern_str == "typeIa":
+        return typeIa_array, typeIa_normalize
+    elif pattern_str == "typeIb":
+        return typeIb_array, typeIb_normalize
+    elif pattern_str == "typeIc":
+        return typeIc_array, typeIc_normalize
+    elif pattern_str == "typeId":
+        return typeId_array, typeId_normalize
+    elif pattern_str == "typeIas":
+        return typeIas_array, typeIas_normalize
+    elif pattern_str == "typeIbs":
+        return typeIbs_array, typeIbs_normalize
+    elif pattern_str == "typeIcs":
+        return typeIcs_array, typeIcs_normalize
+    elif pattern_str == "typeIds":
+        return typeIds_array, typeIds_normalize
+    elif pattern_str == "typeIIa":
+        return typeIIa_array, typeIIa_normalize
+    elif pattern_str == "typeIIb":
+        return typeIIb_array, typeIIb_normalize
+    elif pattern_str == "typeIIc":
+        return typeIIc_array, typeIIc_normalize
+    elif pattern_str == "typeIId":
+        return typeIId_array, typeIId_normalize
+    elif pattern_str == "typeIIIc":
+        return typeIIIc_array, typeIIIc_normalize
+    elif pattern_str == "typeIVc":
+        return typeIVc_array, typeIVc_normalize
+    elif pattern_str == "mori2006":
+        return mori2006_array, mori2006_normalize
+    elif pattern_str == "unitary":
+        return unitary_array, unitary_normalize
     else:
         raise NotImplementedError("given step pattern not supported")
