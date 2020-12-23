@@ -9,10 +9,11 @@ import matplotlib.pyplot as plt
 jitkw = {
     "nopython": True,
     "nogil": True,
-    "cache": True,
+    "cache": False,
     "error_model": "numpy",
     "fastmath": True,
-    "debug": True,
+    "debug": False,
+    "parallel": False,
 }
 
 all = {"none", "sakoechiba", "itakura", "slanted"}
@@ -92,3 +93,20 @@ def get_window(window_name):
         return no_window
     else:
         raise NotImplementedError("given window type not supported")
+
+
+@nb.jit(**jitkw)
+def compute_window(window_name, i, j, query_size, reference_size, window_size):
+    if window_size is None or window_name == "none":
+        return no_window(i, j, query_size, reference_size, window_size)
+    else:
+        if window_name == "sakoechiba":
+            return sakoe_chiba_window(i, j, query_size, reference_size, window_size)
+        elif window_name == "itakura":
+            return itakura_window(i, j, query_size, reference_size, window_size)
+        elif window_name == "slanted":
+            return slanted_band_window(i, j, query_size, reference_size, window_size)
+        # elif window_name == "none":
+        #     return no_window(i, j, query_size, reference_size, window_size)
+        else:
+            raise NotImplementedError("given window type not supported")
