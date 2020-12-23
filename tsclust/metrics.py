@@ -7,7 +7,7 @@ import numba as nb
 jitkw = {
     "nopython": True,
     "nogil": True,
-    "cache": False,
+    "cache": True,
     "error_model": "numpy",
     "fastmath": True,
     "debug": False,
@@ -99,9 +99,7 @@ def correlation(u, v, w=None, centered=True):
     return s
 
 
-nb.jit(**jitkw)
-
-
+@nb.jit(**jitkw)
 def cosine(u, v, w=None):
     return correlation(u, v, w=w, centered=False)
 
@@ -194,5 +192,33 @@ def get_metric(metric_str):
         return braycurtis
     elif metric_str == "canberra":
         return canberra
+    else:
+        raise NotImplementedError("given metric not supported")
+
+
+@nb.jit(**jitkw)
+def compute_metric(metric_str, u, v, w=None, p=2, centered=True):
+    if metric_str == "minkowski":
+        return minkowski(u, v, p, w)
+    elif metric_str == "euclidean":
+        return euclidean(u, v)
+    elif metric_str == "sqeuclidean":
+        return sqeuclidean(u, v)
+    elif metric_str == "correlation":
+        return correlation(u, v, w, centered)
+    elif metric_str == "cosine":
+        return cosine(u, v, w)
+    # elif metric_str == "seuclidean":
+    #     return seuclidean(u, v, V)
+    elif metric_str == "cityblock":
+        return cityblock(u, v, w)
+    # elif metric_str == "mahalanobis":
+    #     return mahalanobis(u, v, VI)
+    elif metric_str == "chebyshev":
+        return chebyshev(u, v, w)
+    elif metric_str == "braycurtis":
+        return braycurtis(u, v, w)
+    elif metric_str == "canberra":
+        return canberra(u, v, w)
     else:
         raise NotImplementedError("given metric not supported")
