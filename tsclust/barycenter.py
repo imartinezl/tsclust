@@ -59,18 +59,36 @@ def get_medoid(X):
             medoid = x
     return medoid
 
-def cwrt(X):
-    medoid = get_medoid(X)
+def cwrt(X, medoid=None):
+    if medoid is None:
+        medoid = get_medoid(X)
     medoid_assignments = [[] for i in range(len(medoid))]
     for x in X:
         cost, path, dist = dtw(medoid, x, euclidean, no_window)
         for p, q in path:
             medoid_assignments[p].append(x[q])
 
-    mean = [np.mean(x) for x in medoid_assignments]
-    std = [np.std(x) for x in medoid_assignments]
-    return medoid, mean, std
+    mean = np.array([np.mean(x) for x in medoid_assignments])
+    std = np.array([np.std(x) for x in medoid_assignments])
+    return mean, std, medoid
 
+
+def inertia(X, mean):
+    total = 0.0
+    for x in X:
+        cost, path, dist = dtw(mean, x, euclidean, no_window)
+        total += dist
+    return total
+
+def irr(X, centroid, medoid):
+    total_centroid = 0.0
+    total_medoid = 0.0
+    for x in X:
+        cost, path, dist = dtw(centroid, x, euclidean, no_window)
+        total_centroid += dist
+        cost, path, dist = dtw(medoid, x, euclidean, no_window)
+        total_medoid += dist
+    return 1 - (total_centroid / total_medoid)
 
 
 
@@ -90,8 +108,9 @@ for x in X_subset:
     ax[0].plot(x, c="blue", alpha=0.1)
 ax[1].plot(mean, c="red")
 
-medoid, mean, std = cwrt(X_subset)
-
+medoid = get_medoid(X_subset)
+mean, std, medoid = cwrt(X_subset, medoid)
+print(irr(X_subset, mean, medoid))
 
 plt.show()
 
