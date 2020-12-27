@@ -143,7 +143,7 @@ def dtw(
     pattern = get_pattern(step_pattern)
     window = get_window(window_name)  # jit method
 
-    # local_cost = _compute_local_cost(x, y, dist)
+    # local_cost = _compute_local_cost(x, y, dist, window, window_size)
     # local_cost = cdist(x, y, local_dist)
     # cost, direction = _compute_global_cost(local_cost, pattern.array, window, window_size)
     cost, direction = _compute_cost_efficient(
@@ -368,13 +368,14 @@ def _compute_cost_open_end(local_cost, pattern, window, window_size):
 
 
 @nb.jit(**jitkwp)
-def _compute_local_cost(x, y, dist, weight=None):
+def _compute_local_cost(x, y, dist, window, window_size=None):
     n = len(x)
     m = len(y)
-    local_cost = np.empty((n, m), dtype=np.float64)
+    local_cost = np.full((n, m), np.inf, dtype=np.float64)
     for i in nb.prange(n):
         for j in nb.prange(m):
-            local_cost[i, j] = dist(x[i], y[j])
+            if window(i, j, n, m, window_size):
+                local_cost[i, j] = dist(x[i], y[j])
             # local_cost[i, j] = dist(x[i], y[j], weight)
     return local_cost
 
