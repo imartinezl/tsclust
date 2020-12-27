@@ -32,6 +32,13 @@ def dtw( # symmetric1
     x = validate_time_series(x)
     y = validate_time_series(y)
 
+    cost = get_cost(x, y, local_dist, window, window_size)
+    path = get_warping_path(cost)
+    dist = cost[-1, -1]
+    return cost, path, dist
+
+@nb.jit(**jitkw)
+def get_cost(x, y, local_dist, window, window_size):
     n = x.shape[0]
     m = y.shape[0]
     cost = np.full((n, m), np.inf, dtype=np.float64)
@@ -48,10 +55,7 @@ def dtw( # symmetric1
                     cost[i, j] = cost[i - 1, j] + local_cost
                 else:
                     cost[i, j] = local_cost + min(cost[i - 1, j - 1], cost[i, j - 1], cost[i - 1, j])
-    path = get_warping_path(cost)
-    dist = cost[-1, -1]
-    return cost, path, dist
-
+    return cost
 
 @nb.jit(**jitkw)
 def get_warping_path(cost):
@@ -107,7 +111,7 @@ y = np.sin(2 * np.pi * 3 * np.linspace(0, 1, n))
 y += np.random.rand(y.size)
 
 
-from metrics import euclidean
+from metrics import euclidean, sqeuclidean
 from window import no_window, itakura_window
 
 t1 = timeit.timeit(lambda: dtw(x, y, euclidean, no_window), number=1)
