@@ -25,7 +25,7 @@ except:
 jitkw = {
     "nopython": True,
     "nogil": True,
-    "cache": True,
+    "cache": False,
     "error_model": "numpy",
     "fastmath": True,
     "debug": False,
@@ -104,7 +104,7 @@ def to_time_series_dataset(dataset, dtype=np.float):
     dataset_out = np.zeros((n_ts, max_sz, d), dtype=dtype) + np.nan
     for i in range(n_ts):
         ts = to_time_series(dataset[i], remove_nans=True)
-        dataset_out[i, : ts.shape[0]] = ts
+        dataset_out[i, :ts.shape[0]] = ts
     return dataset_out.astype(dtype)
 
 
@@ -115,7 +115,7 @@ def to_time_series(ts, remove_nans=False):
     if ts_out.dtype != np.float:
         ts_out = ts_out.astype(np.float)
     if remove_nans:
-        ts_out = ts_out[: ts_size(ts_out)]
+        ts_out = ts_out[:ts_size(ts_out)]
     return ts_out
 
 
@@ -132,6 +132,17 @@ def ts_size(ts):
     while sz > 0 and not np.any(np.isfinite(ts_[sz - 1])):
         sz -= 1
     return sz
+
+def check_equal_size(X):
+    X_ = to_time_series_dataset(X)
+    sz = -1
+    for ts in X_:
+        if sz < 0:
+            sz = ts_size(ts)
+        else:
+            if sz != ts_size(ts):
+                return False
+    return True
 
 
 def check_dims(X, X_fit_dims=None, extend=True, check_n_features_only=False):
