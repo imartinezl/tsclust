@@ -64,8 +64,7 @@ def get_local_cost(x, y, local_dist, window, window_size):
 
 @nb.jit(**jitkw)
 def get_cost(local_cost, gamma, window, window_size):
-    n = x.shape[0]
-    m = y.shape[0]
+    n, m = local_cost.shape
     cost = np.full((n, m), np.inf, dtype=np.float64)
 
     for i in range(n):
@@ -93,14 +92,16 @@ def softmin(a, b, c, gamma):
     tmp += np.exp(b - max_val)
     tmp += np.exp(c - max_val)
 
+    # tmp = np.exp(a - max_val) + np.exp(b - max_val) + np.exp(c - max_val)
+
     return -gamma * (np.log(tmp) + max_val)
 
 
 @nb.jit(**jitkw)
 def get_gradient(local_cost, cost, gamma, window, window_size):
     # ONLY WORKS WITH EUCLIDEAN SQUARED DISTANCE
-    m, n = local_cost.shape
-    gradient = np.empty((m,n), dtype=np.float64)
+    n, m = local_cost.shape
+    gradient = np.zeros((n, m), dtype=np.float64)
 
     for i in range(n-1,-1,-1):
         for j in range(m-1,-1,-1):
@@ -146,6 +147,45 @@ def get_warping_path(cost):
 
     return path
 
+@nb.jit(**jitkwp)
+def jacobian_product_sq_euc(x, y, gradient):
+    n = x.shape[0]
+    m = y.shape[0]
+    d = x.shape[1]
+
+    total_gradient = np.zeros_like(x, dtype=np.float64)
+
+    for i in nb.prange(m):
+        for j in nb.prange(n):
+            for k in nb.prange(d):
+    # for i in range(n):
+    #     for j in range(m):
+    #         for k in range(d):
+                total_gradient[i, k] += gradient[i,j] * 2 * (x[i, k] - y[j, k])
+    return total_gradient
+
+
+# from metrics import sqeuclidean
+# from window import no_window
+def differentiate(x, y, gamma, local_dist, window, window_size=None):
+    x = validate_time_series(x)
+    y = validate_time_series(y)
+
+    # local_dist = sqeuclidean
+    # window = no_window
+    # window_size = None
+
+    local_cost = get_local_cost(x, y, local_dist, window, window_size)
+    cost = get_cost(local_cost, gamma, window, window_size)
+    gradient = get_gradient(local_cost, cost, gamma, window, window_size)
+    total_gradient = jacobian_product_sq_euc(x, y, gradient)
+
+    dist = cost[-1,-1]
+    # print(np.sum(np.isnan(gradient)), np.sum(np.isnan(total_gradient)))
+
+    return dist, total_gradient
+
+
 # TO-DO
 # a) variable time axis: imagine irregularly sampled time series (literature?)
 # b) also, implement online dynamic time warping for large time series (bigger than 10000 points, for example)
@@ -159,6 +199,9 @@ def get_warping_path(cost):
 
 x = np.array([1, 2, 3, 4])
 y = np.array([2, 3, 3, 8])
+
+x = np.array([1, 2, 3])
+y = np.array([2, 3, 5, 10])
 
 # x = np.array([[1, 1], [2, 2], [2, 3], [4, 4]])
 # y = np.array([[2, 2], [3, 3], [3, 3], [8, 8]])
@@ -177,10 +220,12 @@ y = np.array([2, 3, 3, 8])
 from metrics import sqeuclidean
 from window import no_window, itakura_window
 
-t1 = timeit.timeit(lambda: softdtw(x, y, 1, sqeuclidean, no_window), number=1)
-rep = 10
-t2 = timeit.timeit(lambda: softdtw(x, y, 1, sqeuclidean, no_window), number=rep)
-print("SOFTDTW:", f"{t1:.4f}", f"{t2/rep:.6f}", f"{t1 / t2*rep:.4f}")
+a = differentiate(x, y, 1.0, sqeuclidean, no_window)
+
+# t1 = timeit.timeit(lambda: softdtw(x, y, 1, sqeuclidean, no_window), number=1)
+# rep = 10
+# t2 = timeit.timeit(lambda: softdtw(x, y, 1, sqeuclidean, no_window), number=rep)
+# print("SOFTDTW:", f"{t1:.4f}", f"{t2/rep:.6f}", f"{t1 / t2*rep:.4f}")
 
 # a, b, c = softdtw(x, y, 1, sqeuclidean, no_window)
 # print(a)
