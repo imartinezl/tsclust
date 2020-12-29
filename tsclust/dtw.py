@@ -416,7 +416,7 @@ def _compute_global_cost(local_cost, pattern_array, window, window_size=None):
 
 @nb.jit(**jitkw)
 def _get_distance2(cost, pattern_normalize):
-    m, n = cost.shape
+    n, m = cost.shape
     dist = cost[-1, -1]
     normalized_dist = None
 
