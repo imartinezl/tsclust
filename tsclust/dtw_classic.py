@@ -35,7 +35,8 @@ def dtw( # symmetric1
     cost = get_cost(x, y, local_dist, window, window_size)
     path = get_warping_path(cost)
     dist = cost[-1, -1]
-    return cost, path, dist
+    normalized_dist = dist / (len(x) + len(y))
+    return cost, path, dist, normalized_dist
 
 @nb.jit(**jitkw)
 def get_cost(x, y, local_dist, window, window_size):
@@ -119,8 +120,8 @@ rep = 10
 t2 = timeit.timeit(lambda: dtw(x, y, euclidean, no_window), number=rep)
 print("DTW CLASSIC:", f"{t1:.4f}", f"{t2/rep:.6f}", f"{t1 / t2*rep:.4f}")
 
-cost, path, dist = dtw(x, y, euclidean, no_window)
-print(dist)
+cost, path, dist, normalized_dist = dtw(x, y, euclidean, no_window)
+print(dist, normalized_dist)
 
 # from result import DtwResult
 # cost, path, dist = dtw(x, y, euclidean, no_window)
