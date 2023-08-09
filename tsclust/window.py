@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+# %%
 
 import numpy as np
 import numba as nb
@@ -71,15 +71,15 @@ def plot_window(window, query_size, reference_size, window_size=None):
 
 def plot_mask(mask):
     query_size, reference_size = mask.shape
-    fig, ax = plt.subplots(figsize=(6, 6))
-    ax.imshow(mask, origin="upper", cmap="cividis")
-    ax.set_ylabel(f"query (size: {query_size})")
-    ax.set_xlabel(f"reference (size: {reference_size})")
+    fig, ax = plt.subplots(figsize=(3,3))
+    ax.imshow(mask, origin="lower", cmap="cividis")
+    ax.set_ylabel(f"$\mathbf{{x}}$ (size: {query_size})")
+    ax.set_xlabel(f"$\mathbf{{y}}$ (size: {reference_size})")
     # ax.grid(color='r', linestyle='-', linewidth=2)
     ax.set_yticks([])
     ax.set_xticks([])
-    plt.axis("equal")
-    plt.show()
+    # plt.axis("equal")
+    # plt.show()
 
 
 def get_window(window_name):
@@ -106,7 +106,19 @@ def compute_window(window_name, i, j, query_size, reference_size, window_size):
             return itakura_window(i, j, query_size, reference_size, window_size)
         elif window_name == "slanted":
             return slanted_band_window(i, j, query_size, reference_size, window_size)
-        # elif window_name == "none":
-        #     return no_window(i, j, query_size, reference_size, window_size)
+        elif window_name == "none":
+            return no_window(i, j, query_size, reference_size, window_size)
         else:
             raise NotImplementedError("given window type not supported")
+
+
+if __name__ == "__main__":
+    for window_name in ["none","sakoechiba", "itakura", "slanted"]:
+        query_size = 500
+        reference_size = 400
+        window_size = 50
+        window = get_window(window_name)
+        print(window_name, query_size, reference_size, window_size)
+        plot_window(window, query_size, reference_size, window_size)
+        plt.tight_layout()
+        plt.savefig(window_name + "_" + str(query_size) + "_" + str(window_size) + ".pdf")

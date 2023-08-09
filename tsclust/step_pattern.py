@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# %%
 """
 This file contains code that was borrowed from dtwalign.
 
@@ -54,11 +55,13 @@ all = {
     "unitary",
 }
 
-
+from fractions import Fraction
 def _num_to_str(num):
     if type(num) == int:
         return str(num)
     elif type(num) == float:
+        return str(Fraction(num))
+        return (num).as_integer_ratio()
         return "{0:1.2f}".format(num)
     else:
         return str(num)
@@ -443,19 +446,23 @@ class StepPattern:
         )
         nx.draw_networkx_edges(self._graph, pos=self._graph_layout)
         nx.draw_networkx_edge_labels(
-            self._graph, pos=self._graph_layout, edge_labels=self._edge_labels
+            self._graph, pos=self._graph_layout, edge_labels=self._edge_labels, font_size=16, rotate=True, label_pos=0.6
         )
         x_ticks = np.unique(self.array[:, :, 0])
         y_ticks = np.unique(self.array[:, :, 1])
-        ax.set_xlim([np.min(x_ticks) - 0.5, 0.5])
-        ax.set_ylim([np.min(y_ticks) - 0.5, 0.5])
-        plt.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+        ax.set_xlim([np.min(x_ticks) - 0.25, 0.25])
+        ax.set_ylim([np.min(y_ticks) - 0.25, 0.25])
+        
+        for p in ax.spines:
+            ax.spines[p].set_visible(False)
+        ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True, colors="gray", which="both")
         ax.set_xticks(x_ticks)
         ax.set_yticks(y_ticks)
+        # ax.axis("off")
         if labels:
-            ax.set_title(self.label + " pattern")
-            ax.set_xlabel("Query index")
-            ax.set_ylabel("Reference index")
+            # ax.set_title(self.label + " pattern",fontsize=11)
+            ax.set_xlabel(r"$\mathbf{x}$ index", fontsize=11) # query
+            ax.set_ylabel(r"$\mathbf{y}$ index", fontsize=11) # reference
 
     def plot(self, labels=True, ax=None):
         self.plot_graph(labels, ax)
@@ -565,7 +572,7 @@ class AsymmetricP05(StepPattern):
     pattern = [
         dict(
             indices=[(-1, -3), (0, -2), (0, -1), (0, 0)],
-            weights=[1 / 3, 1 / 3, 1 / 3],
+            weights=[Fraction(1,3),Fraction(1,3),Fraction(1,3)],
         ),
         dict(indices=[(-1, -2), (0, -1), (0, 0)], weights=[0.5, 0.5]),
         dict(indices=[(-1, -1), (0, 0)], weights=[1]),
@@ -596,7 +603,7 @@ class AsymmetricP2(StepPattern):
     pattern = [
         dict(
             indices=[(-2, -3), (-1, -2), (0, -1), (0, 0)],
-            weights=[2 / 3, 2 / 3, 2 / 3],
+            weights=[Fraction(2,3), Fraction(2,3), Fraction(2,3)],
         ),
         dict(indices=[(-1, -1), (0, 0)], weights=[1]),
         dict(indices=[(-3, -2), (-2, -1), (-1, 0), (0, 0)], weights=[1, 1, 1]),
@@ -994,3 +1001,12 @@ def get_pattern_data(pattern_str):
         return unitary_array, unitary_normalize
     else:
         raise NotImplementedError("given step pattern not supported")
+
+if __name__ == "__main__":
+    for sp in all:
+        fig, ax = plt.subplots(1, figsize=(3,3))
+        get_pattern(sp).plot(ax=ax, labels=False)
+        ax.axis("equal")
+        # plt.tight_layout()
+        plt.savefig(sp + ".pdf", bbox_inches="tight")
+        # break

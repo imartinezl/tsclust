@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
+# %%
 import numpy as np
 import numba as nb
-from tsclust.dtw_classic import dtw
+from dtw_classic import dtw
 from metrics import euclidean, sqeuclidean
 from window import no_window
 
@@ -169,7 +171,7 @@ def softdtw_barycenter(X, gamma=1.0, weights=None, method="L-BFGS-B", tol=1e-3,
 
 medoid = get_medoid(np.array([[0],[0]]))
 
-from tsclust.datasets import UCR_UEA_datasets
+from datasets import UCR_UEA_datasets
 X_train, y_train, X_test, y_test = UCR_UEA_datasets().load_dataset("ShakeGestureWiimoteZ")
 X_train, y_train, X_test, y_test = UCR_UEA_datasets().load_dataset("CBF")
 X_train, y_train, X_test, y_test = UCR_UEA_datasets().load_dataset("Trace")
@@ -186,6 +188,7 @@ plt.plot(a, c='red')
 plt.plot(b, c='blue')
 plt.show()
 
+# %%
 # X = np.vstack([X_train, X_test])
 # y = np.hstack([y_train, y_test])
 

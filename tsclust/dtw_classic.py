@@ -124,9 +124,15 @@ cost, path, dist, normalized_dist = dtw(x, y, euclidean, no_window)
 print(dist, normalized_dist)
 
 # from result import DtwResult
-# cost, path, dist = dtw(x, y, euclidean, no_window)
+# cost, path, dist, normalized_dist = dtw(x, y, euclidean, no_window)
 # result = DtwResult(x, y, cost, path, no_window, None, dist, None)
 # result.plot_cost_matrix()
 # result.plot_path()
 # result.plot_warp()
 # plt.show()
+
+# Dynamic programming: recursion + memoization + guessing
+# memoize and reuse solutions to subproblems that help solve the problem
+# time = # subproblems x time_per_subproblem
+# Bottom-Up DP algorithm: topological sort of subproblem dependency DAG (directed acyclic graph)
+# practically faster, no recursion, and more obvious analysis
