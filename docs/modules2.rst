@@ -16,7 +16,6 @@ API Documentation
 .. autosummary::
     :nosignatures:
 
-    tsclust.stepattern
-    tsclust.example
+    tsclust
 
 
