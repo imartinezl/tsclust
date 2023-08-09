@@ -3,4 +3,5 @@
 
 import numpy as np
 import scipy.spatial
-import tsclust.dtw
+
+# import tsclust.dtw
