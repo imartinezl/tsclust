@@ -29,7 +29,7 @@ ENTRY_POINTS = {
 }
 PROJECT_URLS = {
     'Bug Reports': URL + '/issues',
-    'Documentation': 'https://tslearn.readthedocs.io',
+    'Documentation': 'https://tsclust.readthedocs.io',
     'Source Code': URL,
 }
 REQUIRES_PYTHON = '>=3.5, <4'
